@@ -1,10 +1,11 @@
 import pygame
-from pygame.locals import *
+from player.player import Player
 
 pygame.init()
 screen = pygame.display.set_mode((1920,1080), pygame.FULLSCREEN)
 clock = pygame.time.Clock()
-red = (255, 0, 0)
+
+player = Player()
 
 running = True
 while running :
@@ -13,7 +14,8 @@ while running :
             running = False
             
     screen.fill((0, 0, 0))
-    pygame.draw.rect(screen, red, [100, 100, 100, 100], 2)
+
+    player.draw(screen)
 
     pygame.display.flip()
     # pygame.display.update()
