@@ -1,8 +1,11 @@
 import pygame
 
 class Player(object):
-    def __init__(self):
-
+    def __init__(self, start_pos, color, controls):
+        
+        self.rect = pygame.Rect(*start_pos, 50, 50)
+        self.color = color
+        self.controls = controls
         self.speed = [0, 0] 
         self.gravity = 0.45
         self.move_speed = 5
@@ -10,15 +13,12 @@ class Player(object):
         self.jump_max = 2
         self.jump_force = -12
 
-        self.rect = pygame.Rect(960, 540, 50, 50)
-        self.color = (255, 255, 255)
-
     def handle_input(self, keys):
         self.speed[0] = 0
 
-        if keys[pygame.K_LEFT]:
+        if keys[self.controls["left"]]:
             self.speed[0] = -self.move_speed
-        if keys[pygame.K_RIGHT]:
+        if keys[self.controls["right"]]:
             self.speed[0] = self.move_speed
     
     def jump(self):
