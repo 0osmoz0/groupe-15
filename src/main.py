@@ -18,7 +18,7 @@ while running :
             
     screen.fill((0, 0, 0))
 
-    player.move()
+    player.move(screen)
     player.draw(screen)
 
     player2.move()
