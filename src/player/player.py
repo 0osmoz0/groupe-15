@@ -28,9 +28,24 @@ class Player(object):
             else:
                 self.speed[1] = self.jump_force * 1.1
             self.jump_count += 1
+    
+    def collide_with_other(self, other):
+        if self.rect.colliderect(other.rect):
 
-        
-    def move(self, screen):
+            if self.speed[0] > 0: 
+                self.rect.right = other.rect.left
+            elif self.speed[0] < 0: 
+                self.rect.left = other.rect.right
+
+            if self.speed[1] > 0 : 
+                self.rect.bottom = other.rect.top
+                self.speed[1] = 0
+
+            elif self.speed [1] < 0: 
+                self.rect.top = other.rect.bottom 
+                self.speed[1] = 0
+
+    def move(self, screen, others=[]):
         self.speed[1] += self.gravity
 
         self.rect.x += self.speed[0]
@@ -38,6 +53,9 @@ class Player(object):
 
 
         self.rect.clamp_ip(screen.get_rect())
+
+        for other in others:
+            self.collide_with_other(other)
 
         if self.rect.bottom >= screen.get_height():
             self.rect.bottom = screen.get_height()

@@ -2,7 +2,7 @@ import pygame
 from player.player import Player
 
 pygame.init()
-screen = pygame.display.set_mode((1920,1080), pygame.FULLSCREEN)
+screen = pygame.display.set_mode((800,400))
 clock = pygame.time.Clock()
 
 player1 = Player(start_pos=(100, 500), color=(255, 0, 0), controls={"left":pygame.K_a,"right":pygame.K_d,"jump":pygame.K_SPACE})
@@ -25,11 +25,13 @@ while running :
 
     keys = pygame.key.get_pressed()
     player1.handle_input(keys)
+    player1.move(screen, others=[player2])
     player1.move(screen)
     player1.draw(screen)
-        
-    
+
+
     player2.handle_input(keys)
+    player2.move(screen, others=[player1])
     player2.move(screen)
     player2.draw(screen)
 
