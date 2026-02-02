@@ -107,3 +107,7 @@ def settings_menu():
 # Lancer le jeu
 if __name__ == "__main__":
     main_menu()
+
+
+
+#bonjour
