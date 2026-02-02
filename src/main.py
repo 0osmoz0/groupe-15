@@ -21,7 +21,7 @@ while running :
     player.move(screen)
     player.draw(screen)
 
-    player2.move()
+    player2.move(screen)
     player2.draw(screen)
 
     pygame.display.flip()

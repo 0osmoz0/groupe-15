@@ -1,4 +1,4 @@
-import pygame, sys
+import pygame
 
 class Player2(object):
     def __init__(self):
@@ -6,17 +6,20 @@ class Player2(object):
         self.speed = [0, 0]
         self.gravity = 0.5
 
-        self.w = 50
-        self.h = 50
-        self.x = 560
-        self.y = 540
+        self.rect = pygame.Rect(660, 540, 50, 50)
         self.color = (255, 0, 0)
-
-    def move(self):
+        
+    def move(self, screen):
         self.speed[1] += self.gravity
-        self.x += self.speed[0]
-        self.y += self.speed[1]
+
+        self.rect.x += self.speed[0]
+        self.rect.y += self.speed[1]
+
+        self.rect.clamp_ip(screen.get_rect())
+
+        if self.rect.bottom >= screen.get_height():
+            self.speed[1] = 0
     
     
     def draw(self, screen):
-        player_rect = pygame.draw.rect(screen, self.color, (self.x, self.y, self.w, self.h))
+        pygame.draw.rect(screen, self.color, self.rect)
