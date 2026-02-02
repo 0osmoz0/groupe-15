@@ -1,4 +1,3 @@
-# menu.py
 import pygame
 from settings import *
 from button import Button
@@ -17,7 +16,6 @@ def quit_game():
 def menu_loop(screen):
     clock = pygame.time.Clock()
 
-    # Création des boutons
     play_button = Button("Play", WIDTH//2 - 100, 200, 200, 50, BLUE, GRAY, play_game)
     settings_button = Button("Settings", WIDTH//2 - 100, 300, 200, 50, BLUE, GRAY, open_settings)
     quit_button = Button("Quit", WIDTH//2 - 100, 400, 200, 50, BLUE, GRAY, quit_game)
@@ -39,7 +37,7 @@ def menu_loop(screen):
             button.draw(screen)
 
         pygame.display.flip()
-        clock.tick(FPS)# menu.py
+        clock.tick(FPS)
 import pygame
 from settings import *
 from button import Button
@@ -58,7 +56,6 @@ def quit_game():
 def menu_loop(screen):
     clock = pygame.time.Clock()
 
-    # Création des boutons
     play_button = Button("Play", WIDTH//2 - 100, 200, 200, 50, BLUE, GRAY, play_game)
     settings_button = Button("Settings", WIDTH//2 - 100, 300, 200, 50, BLUE, GRAY, open_settings)
     quit_button = Button("Quit", WIDTH//2 - 100, 400, 200, 50, BLUE, GRAY, quit_game)

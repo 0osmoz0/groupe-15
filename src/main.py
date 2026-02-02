@@ -1,4 +1,3 @@
-# main.py
 import pygame
 from settings import *
 from menu import menu_loop
