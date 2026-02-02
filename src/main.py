@@ -15,15 +15,19 @@ while running :
     for event in pygame.event.get() :
         if event.type == pygame.QUIT :
             running = False
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_SPACE:
+                player.jump()
             
     screen.fill((0, 0, 0))
 
     keys = pygame.key.get_pressed()
     player.handle_input(keys)
-    player2.handle_input(keys)
     player.move(screen)
     player.draw(screen)
-
+        
+    
+    player2.handle_input(keys)
     player2.move(screen)
     player2.draw(screen)
 
