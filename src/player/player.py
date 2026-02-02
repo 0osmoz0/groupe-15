@@ -3,17 +3,32 @@ import pygame
 class Player(object):
     def __init__(self):
 
-        self.speed = [0, 0]
+        self.speed = [0, 0] 
         self.gravity = 0.5
+        self.move_speed = 5
 
         self.rect = pygame.Rect(960, 540, 50, 50)
         self.color = (255, 255, 255)
+
+    def handle_input(self, keys):
+        self.speed[0] = 0
+
+        if keys[pygame.K_LEFT]:
+            self.speed[0] = -self.move_speed
+        if keys[pygame.K_RIGHT]:
+            self.speed[0] = self.move_speed
+        if keys[pygame.K_UP]:
+            self.speed[1] = -self.move_speed
+        if keys[pygame.K_DOWN]:
+            self.speed[1] = self.move_speed
+
         
     def move(self, screen):
         self.speed[1] += self.gravity
 
         self.rect.x += self.speed[0]
         self.rect.y += self.speed[1]
+
 
         self.rect.clamp_ip(screen.get_rect())
 

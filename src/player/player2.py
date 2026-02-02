@@ -5,9 +5,22 @@ class Player2(object):
 
         self.speed = [0, 0]
         self.gravity = 0.5
+        self.move_speed = 5
 
         self.rect = pygame.Rect(660, 540, 50, 50)
         self.color = (255, 0, 0)
+
+    def handle_input(self, keys):
+        self.speed[0] = 0
+
+        if keys[pygame.K_q]:
+            self.speed[0] = -self.move_speed
+        if keys[pygame.K_d]:
+            self.speed[0] = self.move_speed
+        if keys[pygame.K_z]:
+            self.speed[1] = -self.move_speed
+        if keys[pygame.K_s]:
+            self.speed[1] = self.move_speed
         
     def move(self, screen):
         self.speed[1] += self.gravity

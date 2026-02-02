@@ -18,6 +18,9 @@ while running :
             
     screen.fill((0, 0, 0))
 
+    keys = pygame.key.get_pressed()
+    player.handle_input(keys)
+    player2.handle_input(keys)
     player.move(screen)
     player.draw(screen)
 
