@@ -7,6 +7,7 @@ clock = pygame.time.Clock()
 
 player = Player()
 
+
 running = True
 while running :
     for event in pygame.event.get() :
@@ -15,6 +16,7 @@ while running :
             
     screen.fill((0, 0, 0))
 
+    player.move()
     player.draw(screen)
 
     pygame.display.flip()
