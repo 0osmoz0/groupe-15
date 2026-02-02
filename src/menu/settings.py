@@ -1,3 +1,5 @@
+import pygame
+
 WIDTH = 1920
 HEIGHT = 1080
 FPS = 60
@@ -6,3 +8,4 @@ WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 GRAY = (200, 200, 200)
 BLUE = (0, 120, 255)
+BG_MENU_PATH = "assets/menu/bg.jpg"
