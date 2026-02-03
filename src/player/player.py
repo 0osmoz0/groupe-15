@@ -9,6 +9,7 @@ class Player(pygame.sprite.Sprite):
         self.image = pygame.Surface((50, 50))
         self.image.fill(color)
         self.rect = self.image.get_rect(topleft=start_pos)
+        self.prevy = self.rect.y
 
         self.controls = controls
         self.speed_x = 0
@@ -33,6 +34,7 @@ class Player(pygame.sprite.Sprite):
             self.jump_count += 1
 
     def update(self, others=[]):
+        self.prev_y = self.rect.y
         self.rect.x += self.speed_x
 
         for other in others:
@@ -52,13 +54,13 @@ class Player(pygame.sprite.Sprite):
 
         for other in others:
             if self.rect.colliderect(other.rect):
-                if self.speed_y > 0:
-                    self.rect.bottom = other.rect.top
+                if (
+                    self.speed_y > 0 and
+                    self.prev_y + self.rect.height <= other.rect.top
+                ):
+                    self.rect.bottom = self.rect.top
                     self.speed_y = 0
                     self.jump_count = 0
-                elif self.speed_y < 0:
-                    self.rect.top = other.rect.bottom
-                    self.speed_y = 0
 
         if self.rect.top < 0:
             self.rect.top = 0
