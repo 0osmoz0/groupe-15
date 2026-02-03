@@ -1,35 +1,34 @@
-import pygame
+from dataclasses import dataclass
+from enum import Enum
+from typing import Optional
 
-class Hitbox(pygame.sprite.Sprite):
-    def __init__(self, owner, size, offset, attack):
-        super().__init__()
-        self.owner = owner
-        self.attack = attack
-        self.image = pygame.Surface(size)
-        self.image.fill((255, 255, 0))
-        self.rect = self.image.get_rect()
-        self.offset = offset
 
-        self.timer = 0
-        self.state = "startup"
-        self.active = False
+class HitboxType(Enum):
+    NORMAL = "normal"
+    SET_KNOCKBACK = "set"
+    NO_KNOCKBACK = "none"
 
-    def update(self):
-        self.rect.topleft = (self.owner.rect.x + self.offset[0],
-                             self.owner.rect.y + self.offset[1])
 
-        self.timer += 1
-        if self.state == "startup" and self.timer >= self.attack.startup:
-            self.state = "active"
-            self.active = True
-            self.timer = 0
-        elif self.state == "active" and self.timer >= self.attack.active:
-            self.state = "endlag"
-            self.active = False
-            self.timer = 0
-        elif self.state == "endlag" and self.timer >= self.attack.endlag:
-            self.kill()
+@dataclass
+class Hitbox:
+    frame_start: int
+    frame_end: int
+    offset_x: float
+    offset_y: float
+    width: float
+    height: float
+    angle_deg: float
+    base_knockback: float
+    knockback_scaling: float
+    damage: float
+    hitbox_type: HitboxType = HitboxType.NORMAL
+    set_knockback_val: Optional[float] = None
+    weight_independent: bool = False
+    hitstun_modifier: int = 0
 
-    def check_collision(self, target):
-        return self.active and self.rect.colliderect(target.rect)
+    def is_active(self, frame: int) -> bool:
+        return self.frame_start <= frame <= self.frame_end
 
+    def get_angle_rad(self) -> float:
+        import math
+        return math.radians(self.angle_deg)

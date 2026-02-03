@@ -1,7 +1,7 @@
 import pygame
 from player.stats import Stats
-from combat.knockback import compute_knockback
-from combat.hitbox import Hitbox
+from combat.hitbox_sprite import HitboxSprite
+from combat.knockback import decay_launch_speed
 
 class Player(pygame.sprite.Sprite):
     def __init__(self, start_pos, color, controls, screen_size):
@@ -12,7 +12,7 @@ class Player(pygame.sprite.Sprite):
         self.image = pygame.Surface((50, 50))
         self.image.fill(color)
         self.rect = self.image.get_rect(topleft=start_pos)
-        self.prevy = self.rect.y
+        self.prev_y = self.rect.y
         self.drop_through = False
 
         self.controls = controls
@@ -27,20 +27,25 @@ class Player(pygame.sprite.Sprite):
         self.stats = Stats(weight=1.0)
         self.state = "idle"
         self.hitstun = 0
+        self.facing_right = True
 
     def handle_input(self):
+        if self.hitstun > 0:
+            return
         keys = pygame.key.get_pressed()
         self.speed_x = 0
 
         if keys[self.controls["left"]]:
             self.speed_x = -self.move_speed
+            self.facing_right = False
         if keys[self.controls["right"]]:
             self.speed_x = self.move_speed
-        
+            self.facing_right = True
+
         self.drop_through = keys[self.controls.get("down", pygame.K_s)] and keys[self.controls["jump"]]
 
-    def start_attack(self, attack, hitboxes_group):
-        hb = Hitbox(owner=self, size=attack.hitbox_size, offset=attack.hitbox_offset, attack=attack)
+    def start_attack(self, attack_id: str, hitboxes_group, charge_mult: float = 1.0):
+        hb = HitboxSprite(owner=self, attack_id=attack_id, charge_mult=charge_mult)
         hitboxes_group.add(hb)
 
 
@@ -50,21 +55,13 @@ class Player(pygame.sprite.Sprite):
             self.jump_count += 1
             self.drop_through = False
 
-    def receive_hit(self, attack):
-        self.stats.take_damage(attack.damage)
+    KNOCKBACK_SCALE = 5.0
 
-        vx, vy = compute_knockback(
-            attack.damage,
-            self.stats.percent,
-            attack.base_kb,
-            attack.scaling,
-            attack.angle,
-            self.stats.weight
-        )
-
-        self.speed_x = vx
-        self.speed_y = vy
-        self.hitstun = attack.hitstun
+    def receive_hit(self, hit_result):
+        self.stats.take_damage(hit_result.damage_dealt)
+        self.speed_x = hit_result.velocity_x * self.KNOCKBACK_SCALE
+        self.speed_y = hit_result.velocity_y * self.KNOCKBACK_SCALE
+        self.hitstun = hit_result.hitstun_frames
         self.state = "hitstun"
 
 
@@ -74,11 +71,12 @@ class Player(pygame.sprite.Sprite):
 
         if self.hitstun > 0:
             self.hitstun -= 1
-        else:
-            self.rect.x += self.speed_x
+            self.speed_x, self.speed_y = decay_launch_speed(self.speed_x, self.speed_y)
+
         self.speed_y += self.gravity
 
-        self.rect.y += self.speed_y
+        self.rect.x += int(self.speed_x)
+        self.rect.y += int(self.speed_y)
 
         for other in others:
             if not hasattr(other, "rect"):

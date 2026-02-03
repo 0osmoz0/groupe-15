@@ -1,17 +1,14 @@
 import pygame
 from player.player import Player
 from smash_platform.game_platform import Platform
-from combat.hitbox import Hitbox
-from combat.attacks_data import JAB
+from combat.hitbox_sprite import HitboxSprite
 
 pygame.init()
 
-# ------------------ CONFIG ------------------
 WIDTH, HEIGHT = 1920, 1080
 screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.FULLSCREEN)
 clock = pygame.time.Clock()
 
-# ------------------ JOUEURS ------------------
 player1 = Player(
     start_pos=(WIDTH//2 - 200, HEIGHT//2),
     color=(255, 0, 0),
@@ -40,25 +37,15 @@ player2 = Player(
 
 players = pygame.sprite.Group(player1, player2)
 platforms = pygame.sprite.Group()
-
-hitbox = Hitbox(
-    owner=player1,
-    size=JAB.hitbox_size,
-    offset=JAB.hitbox_offset,
-    attack=JAB
-)
-
 hitboxes = pygame.sprite.Group()
 
 
-# ------------------ GRILLE ------------------
 def draw_grid(screen, spacing=100):
     for x in range(0, WIDTH, spacing):
         pygame.draw.line(screen, (40, 40, 40), (x, 0), (x, HEIGHT))
     for y in range(0, HEIGHT, spacing):
         pygame.draw.line(screen, (40, 40, 40), (0, y), (WIDTH, y))
 
-# ------------------ PLATEFORMES ------------------
 MAIN_W, MAIN_H = 1000, 25
 SMALL_W, SMALL_H = 220, 18
 
@@ -66,20 +53,15 @@ center_x = WIDTH // 2
 center_y = HEIGHT // 2
 
 platforms.add(
-    # Plateforme principale
     Platform(
         (MAIN_W, MAIN_H),
         (center_x - MAIN_W // 2, center_y + 200)
     ),
-
-    # Plateforme gauche (one-way)
     Platform(
         (SMALL_W, SMALL_H),
         (center_x - 350 - SMALL_W // 2, center_y),
         one_way=True
     ),
-
-    # Plateforme droite (one-way)
     Platform(
         (SMALL_W, SMALL_H),
         (center_x + 350 - SMALL_W // 2, center_y),
@@ -87,7 +69,6 @@ platforms.add(
     ),
 )
 
-# ------------------ BOUCLE JEU ------------------
 running = True
 while running:
     for event in pygame.event.get():
@@ -101,26 +82,23 @@ while running:
                 player2.jump()
 
             if event.key == player1.controls["attacking"]:
-                player1.start_attack(JAB, hitboxes)
+                player1.start_attack("jab", hitboxes)
 
             if event.key == player2.controls["attacking"]:
-                player2.start_attack(JAB, hitboxes)
-        
-    hitboxes.update()
-    for hb in hitboxes:
-        if hb.check_collision(player2):
-            player2.receive_hit(hb.attack)
-            hitboxes.remove(hb) 
-
-
-    screen.fill((0, 0, 0))
-    hitboxes.draw(screen)
+                player2.start_attack("jab", hitboxes)
 
     player1.handle_input()
     player2.handle_input()
 
     player1.update([player2] + list(platforms))
     player2.update([player1] + list(platforms))
+
+    hitboxes.update(list(players))
+
+    screen.fill((0, 0, 0))
+    hitboxes.draw(screen)
+    for hb in hitboxes:
+        hb.draw_hitboxes_debug(screen)
 
     platforms.draw(screen)
     players.draw(screen)

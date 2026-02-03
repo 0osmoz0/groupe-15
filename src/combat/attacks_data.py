@@ -1,15 +1,227 @@
-from combat.attack import Attack
+from enum import Enum
+from .hitbox import Hitbox, HitboxType
 
-JAB = Attack(
-    name="Jab",
-    damage=3,
-    angle=45,
-    base_kb=3,
-    scaling=1.2,
-    hitstun=10,
-    startup=3,
-    active=4,
-    endlag=10,
-    hitbox_size=(30, 20),
-    hitbox_offset=(35, 0)
-)
+
+class AttackType(Enum):
+    JAB = "jab"
+    TILT = "tilt"
+    SMASH = "smash"
+    AERIAL = "aerial"
+    DASH_ATTACK = "dash_attack"
+    SPECIAL = "special"
+
+
+ANGLE_SAKURAI = 361
+ANGLE_HORIZONTAL = 0
+ANGLE_UP = 90
+ANGLE_DOWN = 270
+ANGLE_DIAG_UP = 45
+ANGLE_DIAG_DOWN = 315
+
+
+def _jab_hitboxes() -> list[Hitbox]:
+    return [
+        Hitbox(
+            frame_start=3, frame_end=8,
+            offset_x=35, offset_y=0, width=50, height=40,
+            angle_deg=ANGLE_SAKURAI,
+            base_knockback=20, knockback_scaling=0.0,
+            damage=2.0,
+            hitbox_type=HitboxType.SET_KNOCKBACK,
+            set_knockback_val=10.0,
+            hitstun_modifier=2,
+        ),
+        Hitbox(
+            frame_start=12, frame_end=18,
+            offset_x=35, offset_y=0, width=50, height=40,
+            angle_deg=ANGLE_SAKURAI,
+            base_knockback=25, knockback_scaling=0.0,
+            damage=2.0,
+            hitbox_type=HitboxType.SET_KNOCKBACK,
+            set_knockback_val=10.0,
+            hitstun_modifier=2,
+        ),
+        Hitbox(
+            frame_start=22, frame_end=28,
+            offset_x=38, offset_y=0, width=55, height=45,
+            angle_deg=ANGLE_SAKURAI,
+            base_knockback=30, knockback_scaling=0.8,
+            damage=4.0,
+            hitbox_type=HitboxType.NORMAL,
+            hitstun_modifier=3,
+        ),
+    ]
+
+
+def _forward_tilt_hitbox() -> list[Hitbox]:
+    return [
+        Hitbox(
+            frame_start=6, frame_end=10,
+            offset_x=16, offset_y=0, width=12, height=10,
+            angle_deg=ANGLE_SAKURAI,
+            base_knockback=25, knockback_scaling=0.9,
+            damage=9.0,
+            hitbox_type=HitboxType.NORMAL,
+        ),
+    ]
+
+
+def _up_tilt_hitbox() -> list[Hitbox]:
+    return [
+        Hitbox(
+            frame_start=5, frame_end=12,
+            offset_x=0, offset_y=8, width=14, height=10,
+            angle_deg=ANGLE_UP,
+            base_knockback=30, knockback_scaling=0.85,
+            damage=8.0,
+            hitbox_type=HitboxType.NORMAL,
+        ),
+    ]
+
+
+def _down_tilt_hitbox() -> list[Hitbox]:
+    return [
+        Hitbox(
+            frame_start=5, frame_end=8,
+            offset_x=10, offset_y=-4, width=14, height=6,
+            angle_deg=ANGLE_DIAG_DOWN,
+            base_knockback=25, knockback_scaling=0.7,
+            damage=7.0,
+            hitbox_type=HitboxType.NORMAL,
+            hitstun_modifier=3,
+        ),
+    ]
+
+
+def _forward_smash_hitbox(charge_mult: float = 1.0) -> list[Hitbox]:
+    return [
+        Hitbox(
+            frame_start=14, frame_end=18,
+            offset_x=20, offset_y=0, width=16, height=14,
+            angle_deg=ANGLE_SAKURAI,
+            base_knockback=25 * charge_mult,
+            knockback_scaling=1.1 * charge_mult,
+            damage=15.0 * charge_mult,
+            hitbox_type=HitboxType.NORMAL,
+        ),
+    ]
+
+
+def _up_smash_hitbox(charge_mult: float = 1.0) -> list[Hitbox]:
+    return [
+        Hitbox(
+            frame_start=12, frame_end=18,
+            offset_x=0, offset_y=12, width=18, height=14,
+            angle_deg=ANGLE_UP,
+            base_knockback=35 * charge_mult,
+            knockback_scaling=1.05 * charge_mult,
+            damage=14.0 * charge_mult,
+            hitbox_type=HitboxType.NORMAL,
+        ),
+    ]
+
+
+def _down_smash_hitbox(charge_mult: float = 1.0) -> list[Hitbox]:
+    return [
+        Hitbox(
+            frame_start=10, frame_end=14,
+            offset_x=14, offset_y=-2, width=14, height=8,
+            angle_deg=ANGLE_HORIZONTAL,
+            base_knockback=28 * charge_mult,
+            knockback_scaling=1.0 * charge_mult,
+            damage=12.0 * charge_mult,
+            hitbox_type=HitboxType.NORMAL,
+        ),
+    ]
+
+
+def _neutral_aerial_hitbox() -> list[Hitbox]:
+    return [
+        Hitbox(
+            frame_start=4, frame_end=20,
+            offset_x=0, offset_y=0, width=24, height=24,
+            angle_deg=ANGLE_SAKURAI,
+            base_knockback=30, knockback_scaling=0.75,
+            damage=10.0,
+            hitbox_type=HitboxType.NORMAL,
+        ),
+    ]
+
+
+def _forward_aerial_hitbox() -> list[Hitbox]:
+    return [
+        Hitbox(
+            frame_start=8, frame_end=14,
+            offset_x=16, offset_y=0, width=14, height=12,
+            angle_deg=ANGLE_SAKURAI,
+            base_knockback=35, knockback_scaling=0.9,
+            damage=12.0,
+            hitbox_type=HitboxType.NORMAL,
+        ),
+    ]
+
+
+def _back_aerial_hitbox() -> list[Hitbox]:
+    return [
+        Hitbox(
+            frame_start=7, frame_end=11,
+            offset_x=-14, offset_y=0, width=14, height=12,
+            angle_deg=180,
+            base_knockback=40, knockback_scaling=0.95,
+            damage=13.0,
+            hitbox_type=HitboxType.NORMAL,
+        ),
+    ]
+
+
+def _up_aerial_hitbox() -> list[Hitbox]:
+    return [
+        Hitbox(
+            frame_start=6, frame_end=12,
+            offset_x=0, offset_y=14, width=16, height=12,
+            angle_deg=ANGLE_UP,
+            base_knockback=32, knockback_scaling=0.85,
+            damage=11.0,
+            hitbox_type=HitboxType.NORMAL,
+        ),
+    ]
+
+
+def _down_aerial_hitbox() -> list[Hitbox]:
+    return [
+        Hitbox(
+            frame_start=12, frame_end=16,
+            offset_x=0, offset_y=-12, width=14, height=10,
+            angle_deg=ANGLE_DOWN,
+            base_knockback=30, knockback_scaling=0.8,
+            damage=14.0,
+            hitbox_type=HitboxType.NORMAL,
+        ),
+    ]
+
+
+ATTACKS: dict[str, list[Hitbox]] = {
+    "jab": _jab_hitboxes(),
+    "ftilt": _forward_tilt_hitbox(),
+    "utilt": _up_tilt_hitbox(),
+    "dtilt": _down_tilt_hitbox(),
+    "fsmash": _forward_smash_hitbox(),
+    "usmash": _up_smash_hitbox(),
+    "dsmash": _down_smash_hitbox(),
+    "nair": _neutral_aerial_hitbox(),
+    "fair": _forward_aerial_hitbox(),
+    "bair": _back_aerial_hitbox(),
+    "uair": _up_aerial_hitbox(),
+    "dair": _down_aerial_hitbox(),
+}
+
+
+def get_attack_hitboxes(attack_id: str, charge_mult: float = 1.0) -> list[Hitbox]:
+    if attack_id in ("fsmash", "usmash", "dsmash"):
+        builders = {
+            "fsmash": _forward_smash_hitbox,
+            "usmash": _up_smash_hitbox,
+            "dsmash": _down_smash_hitbox,
+        }
+        return builders[attack_id](charge_mult)
+    return list(ATTACKS.get(attack_id, []))

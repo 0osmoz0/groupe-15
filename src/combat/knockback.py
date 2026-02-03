@@ -1,9 +1,100 @@
 import math
+from dataclasses import dataclass
+from typing import Optional
 
-def compute_knockback(damage, percent, base, scaling, angle, weight):
-    force = (base + scaling * percent) / weight
-    rad = math.radians(angle)
-    return (
-        math.cos(rad) * force,
-        -math.sin(rad) * force
+
+LAUNCH_SPEED_FACTOR = 0.03
+KNOCKBACK_DECAY = 0.051
+TUMBLE_THRESHOLD = 80.0
+WEIGHT_DEFAULT_KB = 100
+
+
+@dataclass
+class KnockbackResult:
+    knockback_units: float
+    launch_speed: float
+    angle_rad: float
+    velocity_x: float
+    velocity_y: float
+
+
+def compute_knockback(
+    victim_percent_after_hit: float,
+    damage_dealt: float,
+    victim_weight: float,
+    base_knockback: float,
+    knockback_scaling: float,
+    angle_deg: float,
+    *,
+    set_knockback: bool = False,
+    set_knockback_p: float = 10.0,
+    weight_independent: bool = False,
+    launch_rate: float = 1.0,
+    rage_mult: float = 1.0,
+    crouch_cancel: float = 1.0,
+) -> KnockbackResult:
+    if set_knockback:
+        p = set_knockback_p
+        d = set_knockback_p
+    else:
+        p = victim_percent_after_hit
+        d = damage_dealt
+
+    w = WEIGHT_DEFAULT_KB if weight_independent else victim_weight
+    s = knockback_scaling
+    b = base_knockback
+
+    damage_term = (p / 10.0) + (p * d / 20.0)
+    weight_factor = 200.0 / (w + 100.0)
+    knockback_units = ((damage_term * weight_factor * 1.4 + 18.0) * s) + b
+    r = launch_rate * rage_mult * crouch_cancel
+    knockback_units = knockback_units * r
+
+    knockback_units = max(0.0, knockback_units)
+
+    launch_speed = knockback_units * LAUNCH_SPEED_FACTOR
+
+    angle_rad = math.radians(angle_deg)
+    velocity_x = launch_speed * math.cos(angle_rad)
+    velocity_y = launch_speed * math.sin(angle_rad)
+
+    return KnockbackResult(
+        knockback_units=knockback_units,
+        launch_speed=launch_speed,
+        angle_rad=angle_rad,
+        velocity_x=velocity_x,
+        velocity_y=velocity_y,
     )
+
+
+def apply_directional_influence(
+    velocity_x: float,
+    velocity_y: float,
+    original_angle_rad: float,
+    di_angle_rad: float,
+    di_strength: float = 1.0,
+) -> tuple[float, float]:
+    speed = math.hypot(velocity_x, velocity_y)
+    if speed <= 0:
+        return velocity_x, velocity_y
+
+    new_angle = original_angle_rad + (di_angle_rad - original_angle_rad) * di_strength
+    return (
+        speed * math.cos(new_angle),
+        speed * math.sin(new_angle),
+    )
+
+
+def decay_launch_speed(current_vx: float, current_vy: float) -> tuple[float, float]:
+    speed = math.hypot(current_vx, current_vy)
+    if speed <= 0:
+        return 0.0, 0.0
+    new_speed = max(0.0, speed - KNOCKBACK_DECAY)
+    if new_speed <= 0:
+        return 0.0, 0.0
+    scale = new_speed / speed
+    return current_vx * scale, current_vy * scale
+
+
+def causes_tumble(knockback_units: float) -> bool:
+    return knockback_units >= TUMBLE_THRESHOLD
