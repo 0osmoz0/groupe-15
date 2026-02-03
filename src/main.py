@@ -1,6 +1,8 @@
 import pygame
 from player.player import Player
 from smash_platform.game_platform import Platform
+from combat.hitbox import Hitbox
+from combat.attacks_data import JAB
 
 pygame.init()
 
@@ -36,6 +38,13 @@ player2 = Player(
 
 players = pygame.sprite.Group(player1, player2)
 platforms = pygame.sprite.Group()
+
+hitbox = Hitbox(
+    owner=player1,
+    rect=pygame.Rect(player1.rect.right, player1.rect.top, 30, 30),
+    attack=JAB
+)
+
 
 # ------------------ GRILLE ------------------
 def draw_grid(screen, spacing=100):

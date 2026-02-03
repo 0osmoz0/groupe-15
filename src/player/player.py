@@ -1,4 +1,6 @@
 import pygame
+from player.stats import Stats
+from combat.knockback import compute_knockback
 
 class Player(pygame.sprite.Sprite):
     def __init__(self, start_pos, color, controls, screen_size):
@@ -21,6 +23,10 @@ class Player(pygame.sprite.Sprite):
         self.jump_max = 2
         self.jump_force = -12
 
+        self.stats = Stats(weight=1.0)
+        self.state = "idle"
+        self.hitstun = 0
+
     def handle_input(self):
         keys = pygame.key.get_pressed()
         self.speed_x = 0
@@ -38,52 +44,70 @@ class Player(pygame.sprite.Sprite):
             self.jump_count += 1
             self.drop_through = False
 
+    def receive_hit(self, attack):
+        self.stats.take_damage(attack.damage)
+
+        vx, vy = compute_knockback(
+            percent=self.stats.percent,
+            damage=attack.damage,
+            base_kb=attack.base_kb,
+            scaling=attack.scaling,
+            angle=attack.angle,
+            weight=self.stats.weight
+        )
+
+        self.speed_x = vx
+        self.speed_y = vy
+        self.hitstun = attack.hitstun
+        self.state = "hitstun"
+
+
     def update(self, others=[]):
         self.prev_y = self.rect.y
-        self.rect.x += self.speed_x
 
-        for other in others:
-            if self.rect.colliderect(other.rect):
-                if self.speed_x > 0:
-                    self.rect.right = other.rect.left
-                elif self.speed_x < 0:
-                    self.rect.left = other.rect.right
-
-        self.rect.left = max(self.rect.left, 0)
-        self.rect.right = min(self.rect.right, self.screen_width)
-
+        if self.hitstun > 0:
+            self.hitstun -= 1
+        else:
+            self.rect.x += self.speed_x
         self.speed_y += self.gravity
+
         self.rect.y += self.speed_y
 
         for other in others:
-            if self.rect.colliderect(other.rect):
-                print(f"Collision with {other} | one_way={getattr(other, 'one_way', False)}")
-                print(f"prev_y={self.prev_y}, rect.top={self.rect.top}, rect.bottom={self.rect.bottom}, speed_y={self.speed_y}, drop_through={self.drop_through}")
+            if not hasattr(other, "rect"):
+                continue
 
-                if getattr(other, "one_way", False):
-                    if self.speed_y > 0 and self.prev_y + self.rect.height <= other.rect.top + 5 and not self.drop_through:
-                        print("Landing on one_way platform")
-                        self.rect.bottom = other.rect.top
-                        self.speed_y = 0
-                        self.jump_count = 0
-                    else:
-                        print("Ignoring one_way platform (from below or drop-through)")
-                else:
-                    if self.speed_y > 0:
-                        print("Landing on normal platform")
-                        self.rect.bottom = other.rect.top
-                        self.speed_y = 0
-                        self.jump_count = 0
-                    elif self.speed_y < 0:
-                        print("Hitting head on normal platform")
-                        self.rect.top = other.rect.bottom
-                        self.speed_y = 0
+            if not self.rect.colliderect(other.rect):
+                continue
 
-        # Limites écran
+            one_way = getattr(other, "one_way", False)
+            if one_way:
+                if (
+                    self.speed_y > 0 and
+                    self.prev_y + self.rect.height <= other.rect.top and
+                    not self.drop_through
+                ):
+                    self.rect.bottom = other.rect.top
+                    self.speed_y = 0
+                    self.jump_count = 0
+            else:
+                if self.speed_y > 0:
+                    self.rect.bottom = other.rect.top
+                    self.speed_y = 0
+                    self.jump_count = 0
+                elif self.speed_y < 0:
+                    self.rect.top = other.rect.bottom
+                    self.speed_y = 0
+        if self.rect.left < 0:
+            self.rect.left = 0
+        if self.rect.right > self.screen_width:
+            self.rect.right = self.screen_width
+
         if self.rect.top < 0:
             self.rect.top = 0
             self.speed_y = 0
-        if self.rect.bottom >= self.screen_height:
+
+        if self.rect.bottom > self.screen_height:
             self.rect.bottom = self.screen_height
             self.speed_y = 0
             self.jump_count = 0
