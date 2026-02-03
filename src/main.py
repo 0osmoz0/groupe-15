@@ -19,7 +19,8 @@ player1 = Player(
         "left": pygame.K_q,
         "right": pygame.K_d,
         "jump": pygame.K_SPACE,
-        "down": pygame.K_s
+        "down": pygame.K_s,
+        "attacking": pygame.K_f
     },
     screen_size=(WIDTH, HEIGHT)
 )
@@ -31,7 +32,8 @@ player2 = Player(
         "left": pygame.K_LEFT,
         "right": pygame.K_RIGHT,
         "jump": pygame.K_UP,
-        "down": pygame.K_DOWN
+        "down": pygame.K_DOWN,
+        "attacking": pygame.K_m
     },
     screen_size=(WIDTH, HEIGHT)
 )
@@ -41,9 +43,12 @@ platforms = pygame.sprite.Group()
 
 hitbox = Hitbox(
     owner=player1,
-    rect=pygame.Rect(player1.rect.right, player1.rect.top, 30, 30),
+    size=JAB.hitbox_size,
+    offset=JAB.hitbox_offset,
     attack=JAB
 )
+
+hitboxes = pygame.sprite.Group()
 
 
 # ------------------ GRILLE ------------------
@@ -95,7 +100,21 @@ while running:
             if event.key == player2.controls["jump"]:
                 player2.jump()
 
+            if event.key == player1.controls["attacking"]:
+                player1.start_attack(JAB, hitboxes)
+
+            if event.key == player2.controls["attacking"]:
+                player2.start_attack(JAB, hitboxes)
+        
+    hitboxes.update()
+    for hb in hitboxes:
+        if hb.check_collision(player2):
+            player2.receive_hit(hb.attack)
+            hitboxes.remove(hb) 
+
+
     screen.fill((0, 0, 0))
+    hitboxes.draw(screen)
 
     player1.handle_input()
     player2.handle_input()

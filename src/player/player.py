@@ -1,6 +1,7 @@
 import pygame
 from player.stats import Stats
 from combat.knockback import compute_knockback
+from combat.hitbox import Hitbox
 
 class Player(pygame.sprite.Sprite):
     def __init__(self, start_pos, color, controls, screen_size):
@@ -38,6 +39,11 @@ class Player(pygame.sprite.Sprite):
         
         self.drop_through = keys[self.controls.get("down", pygame.K_s)] and keys[self.controls["jump"]]
 
+    def start_attack(self, attack, hitboxes_group):
+        hb = Hitbox(owner=self, size=attack.hitbox_size, offset=attack.hitbox_offset, attack=attack)
+        hitboxes_group.add(hb)
+
+
     def jump(self):
         if self.jump_count < self.jump_max:
             self.speed_y = self.jump_force * (1.1 if self.jump_count > 0 else 1)
@@ -48,18 +54,19 @@ class Player(pygame.sprite.Sprite):
         self.stats.take_damage(attack.damage)
 
         vx, vy = compute_knockback(
-            percent=self.stats.percent,
-            damage=attack.damage,
-            base_kb=attack.base_kb,
-            scaling=attack.scaling,
-            angle=attack.angle,
-            weight=self.stats.weight
+            attack.damage,
+            self.stats.percent,
+            attack.base_kb,
+            attack.scaling,
+            attack.angle,
+            self.stats.weight
         )
 
         self.speed_x = vx
         self.speed_y = vy
         self.hitstun = attack.hitstun
         self.state = "hitstun"
+
 
 
     def update(self, others=[]):
