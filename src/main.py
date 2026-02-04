@@ -50,10 +50,29 @@ def load_gif_frames(path, scale_size=None):
 
 pygame.init()
 pygame.font.init()
+pygame.joystick.init()
 
 WIDTH, HEIGHT = 1920, 1080
 screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.FULLSCREEN)
 clock = pygame.time.Clock()
+
+# Mapping manette Xbox (boutons SDL standard pour Xbox / XInput)
+XBOX_A = 0      # Saut
+XBOX_B = 1      # Spécial
+XBOX_X = 2      # Attaque
+XBOX_Y = 3      # Grab
+XBOX_LB = 4     # Contre
+
+joystick_p1 = None
+controller_type_p1 = "keyboard"  # "keyboard" | "xbox" | "generic"
+if pygame.joystick.get_count() > 0:
+    joystick_p1 = pygame.joystick.Joystick(0)
+    joystick_p1.init()
+    name = (joystick_p1.get_name() or "").lower()
+    if "xbox" in name or "xinput" in name:
+        controller_type_p1 = "xbox"
+    else:
+        controller_type_p1 = "generic"
 
 _screen_w, _screen_h = screen.get_size()
 WORLD_W, WORLD_H = _screen_w * 2, _screen_h * 2
@@ -96,7 +115,9 @@ player1 = Player(
         "grab": pygame.K_g,
         "counter": pygame.K_h,
     },
-    screen_size=(WORLD_W, WORLD_H)
+    screen_size=(WORLD_W, WORLD_H),
+    joystick=joystick_p1,
+    controller_type=controller_type_p1,
 )
 
 player2 = Player(
@@ -119,6 +140,20 @@ player2 = Player(
 players = pygame.sprite.Group(player1, player2)
 platforms = pygame.sprite.Group()
 hitboxes = pygame.sprite.Group()
+
+
+def _joystick_p1_keys():
+    """Retourne un dict left/right/up/down depuis le stick gauche de la manette P1 (Xbox)."""
+    if joystick_p1 is None:
+        return pygame.key.get_pressed()
+    ax0 = joystick_p1.get_axis(0) if joystick_p1.get_numaxes() > 0 else 0
+    ax1 = joystick_p1.get_axis(1) if joystick_p1.get_numaxes() > 1 else 0
+    return {
+        player1.controls["left"]: ax0 < -0.5,
+        player1.controls["right"]: ax0 > 0.5,
+        player1.controls["jump"]: ax1 < -0.5,
+        player1.controls["down"]: ax1 > 0.5,
+    }
 
 
 def _start_attack_from_input(player, keys, hitboxes, jab, ftilt, utilt, dtilt, nair, fair, bair, uair, dair):
@@ -305,6 +340,28 @@ while running:
                 else:
                     ProjectileSprite(player2, hitboxes)
                     player2.start_distance_attack_animation()
+
+        if event.type == pygame.JOYBUTTONDOWN and event.joy == 0 and joystick_p1 is not None:
+            jkeys = _joystick_p1_keys()
+            # Boutons Xbox : A=0, B=1, X=2, Y=3, LB=4
+            if event.button == XBOX_A and player1.lives > 0:
+                player1.jump()
+            if event.button == XBOX_X and player1.lives > 0:
+                _start_attack_from_input(player1, jkeys, hitboxes, "jab", "ftilt", "utilt", "dtilt", "nair", "fair", "bair", "uair", "dair")
+            if event.button == XBOX_Y and player1.lives > 0:
+                player1.start_attack("grab", hitboxes)
+            if event.button == XBOX_LB and player1.lives > 0:
+                player1.start_counter()
+            if event.button == XBOX_B and player1.lives > 0:
+                if jkeys.get(player1.controls["left"], False) or jkeys.get(player1.controls["right"], False):
+                    player1.start_attack("side_special", hitboxes)
+                elif jkeys.get(player1.controls["jump"], False):
+                    player1.start_attack("up_special", hitboxes)
+                elif jkeys.get(player1.controls["down"], False):
+                    player1.start_attack("down_special", hitboxes)
+                else:
+                    ProjectileSprite(player1, hitboxes)
+                    player1.start_distance_attack_animation()
 
     player1.handle_input()
     player2.handle_input()
