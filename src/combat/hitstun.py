@@ -22,9 +22,7 @@ def compute_hitstun_frames(
 
     if style == "smash4" or style == "ultimate":
         frames -= HITSTUN_FRAME_SUBTRACT
-        if sent_tumbling and electric_attack:
-            frames += 1
-        elif sent_tumbling or electric_attack:
+        if style == "smash4" and (sent_tumbling or electric_attack):
             frames += 1
 
     frames = int(max(0, frames))

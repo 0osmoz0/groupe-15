@@ -1,9 +1,14 @@
+import math
 import pygame
 from player.stats import Stats
 from combat.hitbox_sprite import HitboxSprite
 from combat.knockback import decay_launch_speed
 
 class Player(pygame.sprite.Sprite):
+    STALE_QUEUE_MAX = 9
+    STALE_DECAY_PER_USE = 0.09
+    CROUCH_CANCEL_MULT = 0.67
+
     def __init__(self, start_pos, color, controls, screen_size):
         super().__init__()
         self.screen_width, self.screen_height = screen_size
@@ -28,6 +33,33 @@ class Player(pygame.sprite.Sprite):
         self.state = "idle"
         self.hitstun = 0
         self.facing_right = True
+        self.tumbling = False
+        self.crouching = False
+        self.di_angle_rad = None
+        self.stale_queue = []
+        self.gravity_for_kb = 0.05
+
+    def update_di(self):
+        keys = pygame.key.get_pressed()
+        dx = 1 if keys[self.controls["right"]] else (-1 if keys[self.controls["left"]] else 0)
+        dy = 1 if keys[self.controls["jump"]] else (-1 if keys[self.controls.get("down", pygame.K_s)] else 0)
+        if dx != 0 or dy != 0:
+            self.di_angle_rad = math.atan2(dy, dx)
+        else:
+            self.di_angle_rad = None
+
+    def get_di_angle_rad(self):
+        return self.di_angle_rad
+
+    def get_stale_damage_mult(self, attack_id: str) -> float:
+        n = self.stale_queue.count(attack_id)
+        mult = 1.0 - self.STALE_DECAY_PER_USE * min(self.STALE_QUEUE_MAX, n)
+        return max(0.1, mult)
+
+    def push_stale(self, attack_id: str):
+        self.stale_queue.append(attack_id)
+        if len(self.stale_queue) > self.STALE_QUEUE_MAX:
+            self.stale_queue.pop(0)
 
     def handle_input(self):
         if self.hitstun > 0:
@@ -62,17 +94,23 @@ class Player(pygame.sprite.Sprite):
         self.speed_x = hit_result.velocity_x * self.KNOCKBACK_SCALE
         self.speed_y = hit_result.velocity_y * self.KNOCKBACK_SCALE
         self.hitstun = hit_result.hitstun_frames
+        self.tumbling = hit_result.tumble
         self.state = "hitstun"
 
 
 
     def update(self, others=[]):
+        self.update_di()
         self.prev_y = self.rect.y
+        self.on_ground = False
 
         if self.hitstun > 0:
             self.hitstun -= 1
             self.speed_x, self.speed_y = decay_launch_speed(self.speed_x, self.speed_y)
+        else:
+            self.tumbling = False
 
+        self.crouching = False
         self.speed_y += self.gravity
 
         self.rect.x += int(self.speed_x)
@@ -95,14 +133,21 @@ class Player(pygame.sprite.Sprite):
                     self.rect.bottom = other.rect.top
                     self.speed_y = 0
                     self.jump_count = 0
+                    self.on_ground = True
             else:
                 if self.speed_y > 0:
                     self.rect.bottom = other.rect.top
                     self.speed_y = 0
                     self.jump_count = 0
+                    self.on_ground = True
                 elif self.speed_y < 0:
                     self.rect.top = other.rect.bottom
                     self.speed_y = 0
+        if self.rect.bottom >= self.screen_height:
+            self.on_ground = True
+        down_key = self.controls.get("down", pygame.K_s)
+        if self.on_ground and pygame.key.get_pressed()[down_key]:
+            self.crouching = True
         if self.rect.left < 0:
             self.rect.left = 0
         if self.rect.right > self.screen_width:

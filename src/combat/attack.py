@@ -1,10 +1,14 @@
+from __future__ import annotations
+
 import math
 
 from .hitbox import Hitbox, HitboxType
 from .knockback import (
     compute_knockback,
     apply_directional_influence,
+    apply_gravity_modifier_tumble,
     causes_tumble,
+    compute_rage_mult,
     KnockbackResult,
 )
 from .hitstun import compute_hitstun_frames
@@ -51,7 +55,10 @@ def resolve_hit(
     *,
     di_angle_rad: float | None = None,
     di_strength: float = 0.18,
-    hitstun_style: str = "melee",
+    hitstun_style: str = "ultimate",
+    attacker_percent: float = 0.0,
+    victim_gravity: float = 0.05,
+    stale_damage_mult: float = 1.0,
 ) -> HitResult | None:
     if hitbox.hitbox_type == HitboxType.NO_KNOCKBACK:
         return None
@@ -59,11 +66,14 @@ def resolve_hit(
     set_kb = hitbox.hitbox_type == HitboxType.SET_KNOCKBACK
     set_p = hitbox.set_knockback_val if set_kb else None
 
-    victim_percent_after = victim.current_percent + hitbox.damage
+    damage_dealt = hitbox.damage * stale_damage_mult
+    victim_percent_after = victim.current_percent + damage_dealt
+
+    rage_mult = victim.rage_mult * compute_rage_mult(attacker_percent)
 
     res = compute_knockback(
         victim_percent_after,
-        hitbox.damage,
+        damage_dealt,
         victim.weight,
         hitbox.base_knockback,
         hitbox.knockback_scaling,
@@ -72,7 +82,7 @@ def resolve_hit(
         set_knockback_p=set_p or 10.0,
         weight_independent=hitbox.weight_independent,
         launch_rate=victim.launch_rate,
-        rage_mult=victim.rage_mult,
+        rage_mult=rage_mult,
         crouch_cancel=victim.crouch_cancel,
     )
 
@@ -82,12 +92,15 @@ def resolve_hit(
         vx = -vx
         angle_rad = math.pi - angle_rad
 
+    tumble = causes_tumble(res.knockback_units)
+    if tumble:
+        vx, vy = apply_gravity_modifier_tumble(vx, vy, victim_gravity)
+
     if di_angle_rad is not None and (vx != 0 or vy != 0):
         vx, vy = apply_directional_influence(
             vx, vy, angle_rad, di_angle_rad, di_strength
         )
 
-    tumble = causes_tumble(res.knockback_units)
     hitstun = compute_hitstun_frames(
         res.knockback_units,
         style=hitstun_style,
@@ -97,7 +110,7 @@ def resolve_hit(
     )
 
     return HitResult(
-        damage_dealt=hitbox.damage,
+        damage_dealt=damage_dealt,
         knockback=res,
         hitstun_frames=hitstun,
         tumble=tumble,

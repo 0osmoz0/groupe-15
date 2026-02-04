@@ -102,3 +102,30 @@ def decay_launch_speed(current_vx: float, current_vy: float) -> tuple[float, flo
 
 def causes_tumble(knockback_units: float) -> bool:
     return knockback_units >= TUMBLE_THRESHOLD
+
+
+def apply_gravity_modifier_tumble(
+    velocity_x: float,
+    velocity_y: float,
+    victim_gravity: float,
+) -> tuple[float, float]:
+    """
+    Brawl onward: en tumble, la gravité de la cible modifie la vélocité verticale.
+    (g - 0.075) * 5 → plus la gravité est haute, plus le lancement vertical est fort.
+    """
+    if victim_gravity <= 0:
+        return velocity_x, velocity_y
+    factor = 1.0 + (victim_gravity - 0.075) * 5.0
+    factor = max(0.5, min(1.5, factor))
+    return velocity_x, velocity_y * factor
+
+
+def compute_rage_mult(attacker_percent: float, rage_start: float = 35.0, rage_cap: float = 150.0, rage_max_mult: float = 1.1) -> float:
+    """
+    Ultimate: rage entre 35% et 150% → mult 1.0 à 1.1.
+    """
+    if attacker_percent < rage_start:
+        return 1.0
+    t = (attacker_percent - rage_start) / (rage_cap - rage_start)
+    t = min(1.0, max(0.0, t))
+    return 1.0 + t * (rage_max_mult - 1.0)

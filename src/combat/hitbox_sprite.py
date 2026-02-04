@@ -73,15 +73,31 @@ class HitboxSprite(pygame.sprite.Sprite):
                     continue
 
                 w = getattr(victim.stats, "weight", 1.0)
+                crouch_cancel = victim.CROUCH_CANCEL_MULT if getattr(victim, "crouching", False) else 1.0
                 victim_stats = VictimStats(
                     current_percent=getattr(victim.stats, "percent", 0),
                     weight=w * 100.0 if w < 50 else w,
+                    crouch_cancel=crouch_cancel,
                 )
+                attacker_percent = getattr(self.owner.stats, "percent", 0)
+                victim_gravity = getattr(victim, "gravity_for_kb", 0.05)
+                stale_mult = self.owner.get_stale_damage_mult(self.attack_id) if hasattr(self.owner, "get_stale_damage_mult") else 1.0
+                di_angle = victim.get_di_angle_rad() if hasattr(victim, "get_di_angle_rad") else None
                 result = resolve_hit(
-                    hb, victim_stats, facing_right, hitstun_style="melee"
+                    hb,
+                    victim_stats,
+                    facing_right,
+                    di_angle_rad=di_angle,
+                    di_strength=0.18,
+                    hitstun_style="ultimate",
+                    attacker_percent=attacker_percent,
+                    victim_gravity=victim_gravity,
+                    stale_damage_mult=stale_mult,
                 )
                 if result is not None:
                     victim.receive_hit(result)
+                    if hasattr(self.owner, "push_stale"):
+                        self.owner.push_stale(self.attack_id)
                     self.hit_this_attack.add((id(victim), id(hb)))
                 break
 
