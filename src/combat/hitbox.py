@@ -1,6 +1,4 @@
-from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
 
 
 class HitboxType(Enum):
@@ -9,22 +7,38 @@ class HitboxType(Enum):
     NO_KNOCKBACK = "none"
 
 
-@dataclass
 class Hitbox:
-    frame_start: int
-    frame_end: int
-    offset_x: float
-    offset_y: float
-    width: float
-    height: float
-    angle_deg: float
-    base_knockback: float
-    knockback_scaling: float
-    damage: float
-    hitbox_type: HitboxType = HitboxType.NORMAL
-    set_knockback_val: Optional[float] = None
-    weight_independent: bool = False
-    hitstun_modifier: int = 0
+    def __init__(
+        self,
+        frame_start: int,
+        frame_end: int,
+        offset_x: float,
+        offset_y: float,
+        width: float,
+        height: float,
+        angle_deg: float,
+        base_knockback: float,
+        knockback_scaling: float,
+        damage: float,
+        hitbox_type: HitboxType = HitboxType.NORMAL,
+        set_knockback_val: float | None = None,
+        weight_independent: bool = False,
+        hitstun_modifier: int = 0,
+    ):
+        self.frame_start = frame_start
+        self.frame_end = frame_end
+        self.offset_x = offset_x
+        self.offset_y = offset_y
+        self.width = width
+        self.height = height
+        self.angle_deg = angle_deg
+        self.base_knockback = base_knockback
+        self.knockback_scaling = knockback_scaling
+        self.damage = damage
+        self.hitbox_type = hitbox_type
+        self.set_knockback_val = set_knockback_val
+        self.weight_independent = weight_independent
+        self.hitstun_modifier = hitstun_modifier
 
     def is_active(self, frame: int) -> bool:
         return self.frame_start <= frame <= self.frame_end

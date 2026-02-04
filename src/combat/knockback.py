@@ -1,7 +1,4 @@
 import math
-from dataclasses import dataclass
-from typing import Optional
-
 
 LAUNCH_SPEED_FACTOR = 0.03
 KNOCKBACK_DECAY = 0.051
@@ -9,13 +6,20 @@ TUMBLE_THRESHOLD = 80.0
 WEIGHT_DEFAULT_KB = 100
 
 
-@dataclass
 class KnockbackResult:
-    knockback_units: float
-    launch_speed: float
-    angle_rad: float
-    velocity_x: float
-    velocity_y: float
+    def __init__(
+        self,
+        knockback_units: float,
+        launch_speed: float,
+        angle_rad: float,
+        velocity_x: float,
+        velocity_y: float,
+    ):
+        self.knockback_units = knockback_units
+        self.launch_speed = launch_speed
+        self.angle_rad = angle_rad
+        self.velocity_x = velocity_x
+        self.velocity_y = velocity_y
 
 
 def compute_knockback(

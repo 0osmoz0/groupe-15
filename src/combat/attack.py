@@ -1,6 +1,4 @@
 import math
-from dataclasses import dataclass, field
-from typing import Optional
 
 from .hitbox import Hitbox, HitboxType
 from .knockback import (
@@ -12,23 +10,38 @@ from .knockback import (
 from .hitstun import compute_hitstun_frames
 
 
-@dataclass
 class VictimStats:
-    current_percent: float
-    weight: float
-    launch_rate: float = 1.0
-    rage_mult: float = 1.0
-    crouch_cancel: float = 1.0
+    def __init__(
+        self,
+        current_percent: float,
+        weight: float,
+        launch_rate: float = 1.0,
+        rage_mult: float = 1.0,
+        crouch_cancel: float = 1.0,
+    ):
+        self.current_percent = current_percent
+        self.weight = weight
+        self.launch_rate = launch_rate
+        self.rage_mult = rage_mult
+        self.crouch_cancel = crouch_cancel
 
 
-@dataclass
 class HitResult:
-    damage_dealt: float
-    knockback: KnockbackResult
-    hitstun_frames: int
-    tumble: bool
-    velocity_x: float
-    velocity_y: float
+    def __init__(
+        self,
+        damage_dealt: float,
+        knockback: KnockbackResult,
+        hitstun_frames: int,
+        tumble: bool,
+        velocity_x: float,
+        velocity_y: float,
+    ):
+        self.damage_dealt = damage_dealt
+        self.knockback = knockback
+        self.hitstun_frames = hitstun_frames
+        self.tumble = tumble
+        self.velocity_x = velocity_x
+        self.velocity_y = velocity_y
 
 
 def resolve_hit(
@@ -36,10 +49,10 @@ def resolve_hit(
     victim: VictimStats,
     attacker_facing_right: bool,
     *,
-    di_angle_rad: Optional[float] = None,
+    di_angle_rad: float | None = None,
     di_strength: float = 0.18,
     hitstun_style: str = "melee",
-) -> Optional[HitResult]:
+) -> HitResult | None:
     if hitbox.hitbox_type == HitboxType.NO_KNOCKBACK:
         return None
 
@@ -93,13 +106,20 @@ def resolve_hit(
     )
 
 
-@dataclass
 class ActiveAttack:
-    attack_id: str
-    current_frame: int
-    total_frames: int
-    hitboxes: list[Hitbox]
-    hit_this_attack: set[int] = field(default_factory=set)
+    def __init__(
+        self,
+        attack_id: str,
+        current_frame: int,
+        total_frames: int,
+        hitboxes: list[Hitbox],
+        hit_this_attack: set = None,
+    ):
+        self.attack_id = attack_id
+        self.current_frame = current_frame
+        self.total_frames = total_frames
+        self.hitboxes = hitboxes
+        self.hit_this_attack = hit_this_attack if hit_this_attack is not None else set()
 
 
 def get_active_hitboxes(attack: ActiveAttack) -> list[Hitbox]:
