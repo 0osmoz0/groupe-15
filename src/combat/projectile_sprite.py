@@ -1,4 +1,5 @@
 import math
+import os
 import pygame
 from .attacks_data import get_projectile_hitbox
 from .attack import (
@@ -16,6 +17,37 @@ COUNTER_LAUNCH_SPEED = 4
 PROJECTILE_SPEED = 14
 PROJECTILE_LIFETIME = 90
 PROJECTILE_SIZE = 20
+PROJECTILE_CARROT_SIZE = 90
+
+_base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_judy_projectile_path = os.path.join(_base_dir, "assets", "JUDY_HOPPS", "munition", "munition.png")
+_nick_projectile_path = os.path.join(_base_dir, "assets", "Nick", "munition_nick", "munition.png")
+_judy_projectile_image = None
+_nick_projectile_image = None
+
+
+def _get_judy_projectile_image():
+    global _judy_projectile_image
+    if _judy_projectile_image is None:
+        try:
+            img = pygame.image.load(_judy_projectile_path).convert_alpha()
+            img = pygame.transform.smoothscale(img, (PROJECTILE_CARROT_SIZE, PROJECTILE_CARROT_SIZE))
+            _judy_projectile_image = pygame.transform.flip(img, True, False)
+        except Exception:
+            _judy_projectile_image = False
+    return _judy_projectile_image if _judy_projectile_image else None
+
+
+def _get_nick_projectile_image():
+    global _nick_projectile_image
+    if _nick_projectile_image is None:
+        try:
+            img = pygame.image.load(_nick_projectile_path).convert_alpha()
+            img = pygame.transform.smoothscale(img, (PROJECTILE_CARROT_SIZE, PROJECTILE_CARROT_SIZE))
+            _nick_projectile_image = pygame.transform.flip(img, True, False)
+        except Exception:
+            _nick_projectile_image = False
+    return _nick_projectile_image if _nick_projectile_image else None
 
 
 class ProjectileSprite(pygame.sprite.Sprite):
@@ -33,8 +65,26 @@ class ProjectileSprite(pygame.sprite.Sprite):
         r = getattr(owner, "rect", pygame.Rect(0, 0, 50, 50))
         start_x = r.centerx + (45 if facing_right else -45)
         start_y = r.centery
-        self.image = pygame.Surface((PROJECTILE_SIZE, PROJECTILE_SIZE))
-        self.image.fill(owner.color if hasattr(owner, "color") else (200, 200, 0))
+
+        character = getattr(owner, "character", None)
+        if character == "judy":
+            judy_img = _get_judy_projectile_image()
+            if judy_img is not None:
+                self.image = pygame.transform.flip(judy_img, not facing_right, False).copy()
+            else:
+                self.image = pygame.Surface((PROJECTILE_SIZE, PROJECTILE_SIZE))
+                self.image.fill(owner.color if hasattr(owner, "color") else (200, 200, 0))
+        elif character == "nick":
+            nick_img = _get_nick_projectile_image()
+            if nick_img is not None:
+                self.image = pygame.transform.flip(nick_img, not facing_right, False).copy()
+            else:
+                self.image = pygame.Surface((PROJECTILE_SIZE, PROJECTILE_SIZE))
+                self.image.fill(owner.color if hasattr(owner, "color") else (200, 200, 0))
+        else:
+            self.image = pygame.Surface((PROJECTILE_SIZE, PROJECTILE_SIZE))
+            self.image.fill(owner.color if hasattr(owner, "color") else (200, 200, 0))
+
         self.rect = self.image.get_rect(center=(start_x, start_y))
         hitboxes_group.add(self)
 

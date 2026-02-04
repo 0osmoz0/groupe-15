@@ -22,8 +22,8 @@ ANGLE_DIAG_DOWN = 315
 def _jab_hitboxes() -> list[Hitbox]:
     return [
         Hitbox(
-            frame_start=3, frame_end=8,
-            offset_x=35, offset_y=0, width=50, height=40,
+            frame_start=2, frame_end=10,
+            offset_x=38, offset_y=0, width=56, height=44,
             angle_deg=ANGLE_SAKURAI,
             base_knockback=20, knockback_scaling=0.0,
             damage=2.0,
@@ -32,8 +32,8 @@ def _jab_hitboxes() -> list[Hitbox]:
             hitstun_modifier=2,
         ),
         Hitbox(
-            frame_start=12, frame_end=18,
-            offset_x=35, offset_y=0, width=50, height=40,
+            frame_start=11, frame_end=20,
+            offset_x=38, offset_y=0, width=56, height=44,
             angle_deg=ANGLE_SAKURAI,
             base_knockback=25, knockback_scaling=0.0,
             damage=2.0,
@@ -42,8 +42,8 @@ def _jab_hitboxes() -> list[Hitbox]:
             hitstun_modifier=2,
         ),
         Hitbox(
-            frame_start=22, frame_end=28,
-            offset_x=38, offset_y=0, width=55, height=45,
+            frame_start=20, frame_end=30,
+            offset_x=42, offset_y=0, width=60, height=48,
             angle_deg=ANGLE_SAKURAI,
             base_knockback=30, knockback_scaling=0.8,
             damage=4.0,
@@ -56,10 +56,10 @@ def _jab_hitboxes() -> list[Hitbox]:
 def _forward_tilt_hitbox() -> list[Hitbox]:
     return [
         Hitbox(
-            frame_start=6, frame_end=10,
-            offset_x=16, offset_y=0, width=12, height=10,
+            frame_start=4, frame_end=14,
+            offset_x=32, offset_y=0, width=36, height=32,
             angle_deg=ANGLE_SAKURAI,
-            base_knockback=25, knockback_scaling=0.9,
+            base_knockback=26, knockback_scaling=0.9,
             damage=9.0,
             hitbox_type=HitboxType.NORMAL,
         ),
@@ -69,8 +69,8 @@ def _forward_tilt_hitbox() -> list[Hitbox]:
 def _up_tilt_hitbox() -> list[Hitbox]:
     return [
         Hitbox(
-            frame_start=5, frame_end=12,
-            offset_x=0, offset_y=8, width=14, height=10,
+            frame_start=3, frame_end=14,
+            offset_x=0, offset_y=18, width=32, height=28,
             angle_deg=ANGLE_UP,
             base_knockback=30, knockback_scaling=0.85,
             damage=8.0,
@@ -82,8 +82,8 @@ def _up_tilt_hitbox() -> list[Hitbox]:
 def _down_tilt_hitbox() -> list[Hitbox]:
     return [
         Hitbox(
-            frame_start=5, frame_end=8,
-            offset_x=10, offset_y=-4, width=14, height=6,
+            frame_start=3, frame_end=12,
+            offset_x=18, offset_y=-8, width=32, height=22,
             angle_deg=ANGLE_DIAG_DOWN,
             base_knockback=25, knockback_scaling=0.7,
             damage=7.0,
@@ -96,8 +96,8 @@ def _down_tilt_hitbox() -> list[Hitbox]:
 def _forward_smash_hitbox(charge_mult: float = 1.0) -> list[Hitbox]:
     return [
         Hitbox(
-            frame_start=14, frame_end=18,
-            offset_x=20, offset_y=0, width=16, height=14,
+            frame_start=12, frame_end=20,
+            offset_x=36, offset_y=0, width=40, height=36,
             angle_deg=ANGLE_SAKURAI,
             base_knockback=25 * charge_mult,
             knockback_scaling=1.1 * charge_mult,
@@ -110,8 +110,8 @@ def _forward_smash_hitbox(charge_mult: float = 1.0) -> list[Hitbox]:
 def _up_smash_hitbox(charge_mult: float = 1.0) -> list[Hitbox]:
     return [
         Hitbox(
-            frame_start=12, frame_end=18,
-            offset_x=0, offset_y=12, width=18, height=14,
+            frame_start=10, frame_end=20,
+            offset_x=0, offset_y=24, width=38, height=32,
             angle_deg=ANGLE_UP,
             base_knockback=35 * charge_mult,
             knockback_scaling=1.05 * charge_mult,
@@ -124,8 +124,8 @@ def _up_smash_hitbox(charge_mult: float = 1.0) -> list[Hitbox]:
 def _down_smash_hitbox(charge_mult: float = 1.0) -> list[Hitbox]:
     return [
         Hitbox(
-            frame_start=10, frame_end=14,
-            offset_x=14, offset_y=-2, width=14, height=8,
+            frame_start=8, frame_end=16,
+            offset_x=20, offset_y=-6, width=36, height=24,
             angle_deg=ANGLE_HORIZONTAL,
             base_knockback=28 * charge_mult,
             knockback_scaling=1.0 * charge_mult,
@@ -138,8 +138,8 @@ def _down_smash_hitbox(charge_mult: float = 1.0) -> list[Hitbox]:
 def _neutral_aerial_hitbox() -> list[Hitbox]:
     return [
         Hitbox(
-            frame_start=4, frame_end=20,
-            offset_x=0, offset_y=0, width=24, height=24,
+            frame_start=3, frame_end=22,
+            offset_x=0, offset_y=0, width=36, height=36,
             angle_deg=ANGLE_SAKURAI,
             base_knockback=30, knockback_scaling=0.75,
             damage=10.0,
@@ -151,8 +151,8 @@ def _neutral_aerial_hitbox() -> list[Hitbox]:
 def _forward_aerial_hitbox() -> list[Hitbox]:
     return [
         Hitbox(
-            frame_start=8, frame_end=14,
-            offset_x=16, offset_y=0, width=14, height=12,
+            frame_start=6, frame_end=16,
+            offset_x=28, offset_y=0, width=32, height=28,
             angle_deg=ANGLE_SAKURAI,
             base_knockback=35, knockback_scaling=0.9,
             damage=12.0,
@@ -164,8 +164,8 @@ def _forward_aerial_hitbox() -> list[Hitbox]:
 def _back_aerial_hitbox() -> list[Hitbox]:
     return [
         Hitbox(
-            frame_start=7, frame_end=11,
-            offset_x=-14, offset_y=0, width=14, height=12,
+            frame_start=5, frame_end=14,
+            offset_x=-28, offset_y=0, width=32, height=28,
             angle_deg=180,
             base_knockback=40, knockback_scaling=0.95,
             damage=13.0,
@@ -177,8 +177,8 @@ def _back_aerial_hitbox() -> list[Hitbox]:
 def _up_aerial_hitbox() -> list[Hitbox]:
     return [
         Hitbox(
-            frame_start=6, frame_end=12,
-            offset_x=0, offset_y=14, width=16, height=12,
+            frame_start=4, frame_end=14,
+            offset_x=0, offset_y=24, width=32, height=26,
             angle_deg=ANGLE_UP,
             base_knockback=32, knockback_scaling=0.85,
             damage=11.0,
@@ -190,8 +190,8 @@ def _up_aerial_hitbox() -> list[Hitbox]:
 def _down_aerial_hitbox() -> list[Hitbox]:
     return [
         Hitbox(
-            frame_start=12, frame_end=16,
-            offset_x=0, offset_y=-12, width=14, height=10,
+            frame_start=10, frame_end=18,
+            offset_x=0, offset_y=-22, width=28, height=24,
             angle_deg=ANGLE_DOWN,
             base_knockback=30, knockback_scaling=0.8,
             damage=14.0,

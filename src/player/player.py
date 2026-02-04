@@ -7,6 +7,7 @@ from combat.knockback import decay_launch_speed
 
 WALK_ANIM_FRAMES = 8
 SPRITE_HEIGHT = 130
+SPRITE_WIDTH_SCALE = 0.85
 ATTACK_ANIM_DURATION = 24
 ATTACK_ANIM_FRAME_DURATION = 8
 
@@ -21,7 +22,7 @@ def _load_walk_frames(character: str):
         paths = [os.path.join(folder, "1.png"), os.path.join(folder, "2.png"), os.path.join(folder, "3.png")]
     frames_raw = [pygame.image.load(p).convert_alpha() for p in paths]
     h = SPRITE_HEIGHT
-    w = max(max(1, int(f.get_width() * h / f.get_height())) for f in frames_raw)
+    w = max(max(1, int(f.get_width() * h / f.get_height() * SPRITE_WIDTH_SCALE)) for f in frames_raw)
     return [pygame.transform.smoothscale(f, (w, h)) for f in frames_raw]
 
 
@@ -35,30 +36,42 @@ def _load_attack_frames(character: str):
         folder = os.path.join(base, "assets", "JUDY_HOPPS", "judy_attack_normal")
         paths = [os.path.join(folder, f"{i}.png") for i in range(1, 7)]
     frames_raw = [pygame.image.load(p).convert_alpha() for p in paths]
-    max_w = max(max(1, int(f.get_width() * h / f.get_height())) for f in frames_raw)
+    max_w = max(max(1, int(f.get_width() * h / f.get_height() * SPRITE_WIDTH_SCALE)) for f in frames_raw)
     return [pygame.transform.smoothscale(f, (max_w, h)) for f in frames_raw]
 
 
 def _load_distance_attack_frame(character: str):
-    if character != "nick":
-        return None
     base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    path = os.path.join(base, "assets", "Nick", "nick_distance_attack", "1.png")
-    img = pygame.image.load(path).convert_alpha()
-    h = SPRITE_HEIGHT
-    w = max(1, int(img.get_width() * h / img.get_height()))
-    return pygame.transform.smoothscale(img, (w, h))
+    if character == "nick":
+        path = os.path.join(base, "assets", "Nick", "nick_distance_attack", "1.png")
+    elif character == "judy":
+        path = os.path.join(base, "assets", "JUDY_HOPPS", "judy_distance", "1.png")
+    else:
+        return None
+    try:
+        img = pygame.image.load(path).convert_alpha()
+        h = SPRITE_HEIGHT
+        w = max(1, int(img.get_width() * h / img.get_height() * SPRITE_WIDTH_SCALE))
+        return pygame.transform.smoothscale(img, (w, h))
+    except Exception:
+        return None
 
 
 def _load_counter_frame(character: str):
-    if character != "nick":
-        return None
     base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    path = os.path.join(base, "assets", "Nick", "nick_hold", "1.png")
-    img = pygame.image.load(path).convert_alpha()
-    h = SPRITE_HEIGHT
-    w = max(1, int(img.get_width() * h / img.get_height()))
-    return pygame.transform.smoothscale(img, (w, h))
+    if character == "nick":
+        path = os.path.join(base, "assets", "Nick", "nick_hold", "1.png")
+    elif character == "judy":
+        path = os.path.join(base, "assets", "JUDY_HOPPS", "judy_hold", "1-removebg-preview-2.png")
+    else:
+        return None
+    try:
+        img = pygame.image.load(path).convert_alpha()
+        h = SPRITE_HEIGHT
+        w = max(1, int(img.get_width() * h / img.get_height() * SPRITE_WIDTH_SCALE))
+        return pygame.transform.smoothscale(img, (w, h))
+    except Exception:
+        return None
 
 
 DISTANCE_ATTACK_DURATION = 28
@@ -315,7 +328,15 @@ class Player(pygame.sprite.Sprite):
             if not hasattr(other, "rect"):
                 continue
 
-            if not self.rect.colliderect(other.rect):
+            other_collide_rect = other.rect
+            surface_offset = getattr(other, "surface_offset", 0)
+            if surface_offset > 0:
+                so = surface_offset
+                other_collide_rect = pygame.Rect(
+                    other.rect.left, other.rect.top + so,
+                    other.rect.width, other.rect.height - so
+                )
+            if not self.rect.colliderect(other_collide_rect):
                 continue
 
             is_other_player = getattr(other, "lives", None) is not None
@@ -336,20 +357,21 @@ class Player(pygame.sprite.Sprite):
                         self.rect.y += overlap_bottom
                 continue
 
+            surface_top = other.rect.top + getattr(other, "surface_offset", 0)
             one_way = getattr(other, "one_way", False)
             if one_way:
                 if (
                     self.speed_y > 0 and
-                    self.prev_y + self.rect.height <= other.rect.top and
+                    self.prev_y + self.rect.height <= surface_top and
                     not self.drop_through
                 ):
-                    self.rect.bottom = other.rect.top
+                    self.rect.bottom = surface_top
                     self.speed_y = 0
                     self.jump_count = 0
                     self.on_ground = True
             else:
                 if self.speed_y > 0:
-                    self.rect.bottom = other.rect.top
+                    self.rect.bottom = surface_top
                     self.speed_y = 0
                     self.jump_count = 0
                     self.on_ground = True

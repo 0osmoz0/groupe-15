@@ -135,6 +135,22 @@ try:
 except Exception:
     NICK_PORTRAIT = None
 
+LIFE_ICON_SIZE = 44
+_life_judy_path = os.path.join(_base_dir, "assets", "JUDY_HOPPS", "vie", "Pv_juddy.png")
+_life_nick_path = os.path.join(_base_dir, "assets", "Nick", "pv", "pv_nick.png")
+LIFE_ICON_JUDY = None
+LIFE_ICON_NICK = None
+try:
+    _lj = pygame.image.load(_life_judy_path).convert_alpha()
+    LIFE_ICON_JUDY = pygame.transform.smoothscale(_lj, (LIFE_ICON_SIZE, LIFE_ICON_SIZE))
+except Exception:
+    pass
+try:
+    _ln = pygame.image.load(_life_nick_path).convert_alpha()
+    LIFE_ICON_NICK = pygame.transform.smoothscale(_ln, (LIFE_ICON_SIZE, LIFE_ICON_SIZE))
+except Exception:
+    pass
+
 nick_win_frame_index = 0
 nick_win_frame_timer_ms = 0
 judy_win_frame_index = 0
@@ -241,43 +257,90 @@ def draw_player_ping(surface, player, ping_surface):
 
 def draw_percent_hud(surface, player, x: int, y: int, align_left: bool = True):
     percent = int(player.stats.percent)
-    lives = player.lives
-    color = player.color if lives > 0 else (100, 100, 100)
-    text_stocks = f"{lives}"
+    lives = max(0, player.lives)
+    character = getattr(player, "character", None)
+    life_icon = LIFE_ICON_JUDY if character == "judy" else (LIFE_ICON_NICK if character == "nick" else None)
     text_percent = f"{percent}%"
-    img_stocks = FONT_PERCENT.render(text_stocks, True, color)
-    img_percent = FONT_PERCENT.render(text_percent, True, color)
+    img_percent = FONT_PERCENT.render(text_percent, True, player.color if lives > 0 else (100, 100, 100))
+    icon_w = LIFE_ICON_SIZE
+    gap = 6
     if align_left:
-        r_stocks = img_stocks.get_rect(midleft=(x, y))
-        surface.blit(img_stocks, r_stocks)
-        r_percent = img_percent.get_rect(midleft=(r_stocks.right + 20, y))
+        if life_icon and lives > 0:
+            for i in range(lives):
+                surface.blit(life_icon, (x + i * (icon_w + gap), y - icon_w // 2))
+            stocks_right = x + lives * (icon_w + gap) - gap
+            r_percent = img_percent.get_rect(midleft=(stocks_right + 24, y))
+        else:
+            text_stocks = FONT_PERCENT.render(f"{lives}", True, player.color if lives > 0 else (100, 100, 100))
+            r_stocks = text_stocks.get_rect(midleft=(x, y))
+            surface.blit(text_stocks, r_stocks)
+            r_percent = img_percent.get_rect(midleft=(r_stocks.right + 20, y))
         surface.blit(img_percent, r_percent)
     else:
         r_percent = img_percent.get_rect(midright=(x, y))
         surface.blit(img_percent, r_percent)
-        r_stocks = img_stocks.get_rect(midright=(r_percent.left - 20, y))
-        surface.blit(img_stocks, r_stocks)
+        if life_icon and lives > 0:
+            start_x = r_percent.left - 24 - lives * (icon_w + gap) + gap
+            for i in range(lives):
+                surface.blit(life_icon, (start_x + i * (icon_w + gap), y - icon_w // 2))
+        else:
+            text_stocks = FONT_PERCENT.render(f"{lives}", True, player.color if lives > 0 else (100, 100, 100))
+            r_stocks = text_stocks.get_rect(midright=(r_percent.left - 20, y))
+            surface.blit(text_stocks, r_stocks)
 
 MAIN_W, MAIN_H = 1000, 25
 SMALL_W, SMALL_H = 220, 18
+
+_grande_platform_path = os.path.join(_base_dir, "assets", "plaform", "Grande.png")
+MAIN_PLATFORM_IMAGE = None
+MAIN_PLATFORM_SIZE = (MAIN_W, MAIN_H)
+try:
+    _grande_img = pygame.image.load(_grande_platform_path).convert_alpha()
+    _gw, _gh = _grande_img.get_size()
+    _main_h = max(25, int(_gh * MAIN_W / _gw))
+    MAIN_PLATFORM_SIZE = (MAIN_W, _main_h)
+    MAIN_PLATFORM_IMAGE = pygame.transform.smoothscale(_grande_img, MAIN_PLATFORM_SIZE)
+except Exception:
+    pass
+
+_petite_platform_path = os.path.join(_base_dir, "assets", "plaform", "PETITE.png")
+SMALL_PLATFORM_STRETCH = 1.12
+SMALL_PLATFORM_IMAGE = None
+SMALL_PLATFORM_SIZE = (SMALL_W, SMALL_H)
+try:
+    _petite_img = pygame.image.load(_petite_platform_path).convert_alpha()
+    _pw, _ph = _petite_img.get_size()
+    _small_h = max(18, int(_ph * SMALL_W / _pw))
+    _small_w = int(SMALL_W * SMALL_PLATFORM_STRETCH)
+    _small_h = int(_small_h * SMALL_PLATFORM_STRETCH)
+    SMALL_PLATFORM_SIZE = (_small_w, _small_h)
+    SMALL_PLATFORM_IMAGE = pygame.transform.smoothscale(_petite_img, SMALL_PLATFORM_SIZE)
+except Exception:
+    pass
 
 world_center_x = WORLD_W // 2
 world_center_y = WORLD_H // 2
 
 platforms.add(
     Platform(
-        (MAIN_W, MAIN_H),
-        (world_center_x - MAIN_W // 2, world_center_y + 200)
+        MAIN_PLATFORM_SIZE,
+        (world_center_x - MAIN_PLATFORM_SIZE[0] // 2, world_center_y + 200),
+        image=MAIN_PLATFORM_IMAGE,
+        surface_offset=int(MAIN_PLATFORM_SIZE[1] * 0.42) if MAIN_PLATFORM_IMAGE else 0
     ),
     Platform(
-        (SMALL_W, SMALL_H),
-        (world_center_x - 350 - SMALL_W // 2, world_center_y),
-        one_way=True
+        SMALL_PLATFORM_SIZE,
+        (world_center_x - 350 - SMALL_PLATFORM_SIZE[0] // 2, world_center_y - 150),
+        one_way=True,
+        image=SMALL_PLATFORM_IMAGE,
+        surface_offset=int(SMALL_PLATFORM_SIZE[1] * 0.38)
     ),
     Platform(
-        (SMALL_W, SMALL_H),
-        (world_center_x + 350 - SMALL_W // 2, world_center_y),
-        one_way=True
+        SMALL_PLATFORM_SIZE,
+        (world_center_x + 350 - SMALL_PLATFORM_SIZE[0] // 2, world_center_y - 150),
+        one_way=True,
+        image=SMALL_PLATFORM_IMAGE,
+        surface_offset=int(SMALL_PLATFORM_SIZE[1] * 0.38)
     ),
 )
 
