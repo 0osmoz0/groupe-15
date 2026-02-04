@@ -200,6 +200,117 @@ def _down_aerial_hitbox() -> list[Hitbox]:
     ]
 
 
+# --- Coups spéciaux (B) ---
+def _neutral_special_hitbox() -> list[Hitbox]:
+    return []
+
+
+def _side_special_hitbox() -> list[Hitbox]:
+    return [
+        Hitbox(
+            frame_start=8, frame_end=16,
+            offset_x=45, offset_y=0, width=40, height=35,
+            angle_deg=ANGLE_SAKURAI,
+            base_knockback=35, knockback_scaling=0.9,
+            damage=12.0,
+            hitbox_type=HitboxType.NORMAL,
+        ),
+    ]
+
+
+def _up_special_hitbox() -> list[Hitbox]:
+    return [
+        Hitbox(
+            frame_start=6, frame_end=14,
+            offset_x=0, offset_y=-30, width=30, height=40,
+            angle_deg=ANGLE_UP,
+            base_knockback=25, knockback_scaling=0.7,
+            damage=8.0,
+            hitbox_type=HitboxType.NORMAL,
+        ),
+    ]
+
+
+def _down_special_hitbox() -> list[Hitbox]:
+    return [
+        Hitbox(
+            frame_start=10, frame_end=18,
+            offset_x=0, offset_y=20, width=35, height=25,
+            angle_deg=ANGLE_DOWN,
+            base_knockback=30, knockback_scaling=0.85,
+            damage=10.0,
+            hitbox_type=HitboxType.NORMAL,
+        ),
+    ]
+
+
+# --- Grab et throws ---
+def _grab_hitbox() -> list[Hitbox]:
+    return [
+        Hitbox(
+            frame_start=4, frame_end=12,
+            offset_x=30, offset_y=0, width=35, height=45,
+            angle_deg=ANGLE_HORIZONTAL,
+            base_knockback=0, knockback_scaling=0,
+            damage=3.0,
+            hitbox_type=HitboxType.SET_KNOCKBACK,
+            set_knockback_val=18.0,
+        ),
+    ]
+
+
+def _fthrow_hitbox() -> list[Hitbox]:
+    return [
+        Hitbox(
+            frame_start=2, frame_end=8,
+            offset_x=35, offset_y=0, width=30, height=40,
+            angle_deg=ANGLE_HORIZONTAL,
+            base_knockback=25, knockback_scaling=0.6,
+            damage=6.0,
+            hitbox_type=HitboxType.NORMAL,
+        ),
+    ]
+
+
+def _bthrow_hitbox() -> list[Hitbox]:
+    return [
+        Hitbox(
+            frame_start=2, frame_end=8,
+            offset_x=-35, offset_y=0, width=30, height=40,
+            angle_deg=180,
+            base_knockback=28, knockback_scaling=0.65,
+            damage=7.0,
+            hitbox_type=HitboxType.NORMAL,
+        ),
+    ]
+
+
+def _uthrow_hitbox() -> list[Hitbox]:
+    return [
+        Hitbox(
+            frame_start=2, frame_end=8,
+            offset_x=0, offset_y=-25, width=35, height=30,
+            angle_deg=ANGLE_UP,
+            base_knockback=30, knockback_scaling=0.7,
+            damage=8.0,
+            hitbox_type=HitboxType.NORMAL,
+        ),
+    ]
+
+
+def _dthrow_hitbox() -> list[Hitbox]:
+    return [
+        Hitbox(
+            frame_start=2, frame_end=8,
+            offset_x=0, offset_y=25, width=35, height=25,
+            angle_deg=ANGLE_DIAG_DOWN,
+            base_knockback=22, knockback_scaling=0.55,
+            damage=5.0,
+            hitbox_type=HitboxType.NORMAL,
+        ),
+    ]
+
+
 ATTACKS: dict[str, list[Hitbox]] = {
     "jab": _jab_hitboxes(),
     "ftilt": _forward_tilt_hitbox(),
@@ -213,7 +324,33 @@ ATTACKS: dict[str, list[Hitbox]] = {
     "bair": _back_aerial_hitbox(),
     "uair": _up_aerial_hitbox(),
     "dair": _down_aerial_hitbox(),
+    "neutral_special": _neutral_special_hitbox(),
+    "side_special": _side_special_hitbox(),
+    "up_special": _up_special_hitbox(),
+    "down_special": _down_special_hitbox(),
+    "grab": _grab_hitbox(),
+    "fthrow": _fthrow_hitbox(),
+    "bthrow": _bthrow_hitbox(),
+    "uthrow": _uthrow_hitbox(),
+    "dthrow": _dthrow_hitbox(),
 }
+
+ATTACK_IDS_PROJECTILE = frozenset({"neutral_special"})
+
+
+def _projectile_hitbox() -> Hitbox:
+    return Hitbox(
+        frame_start=0, frame_end=999,
+        offset_x=0, offset_y=0, width=24, height=24,
+        angle_deg=ANGLE_SAKURAI,
+        base_knockback=20, knockback_scaling=0.7,
+        damage=8.0,
+        hitbox_type=HitboxType.NORMAL,
+    )
+
+
+def get_projectile_hitbox() -> Hitbox:
+    return _projectile_hitbox()
 
 
 def get_attack_hitboxes(attack_id: str, charge_mult: float = 1.0) -> list[Hitbox]:

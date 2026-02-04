@@ -2,6 +2,7 @@ import pygame
 from player.player import Player
 from smash_platform.game_platform import Platform
 from combat.hitbox_sprite import HitboxSprite
+from combat.projectile_sprite import ProjectileSprite
 
 pygame.init()
 pygame.font.init()
@@ -23,7 +24,9 @@ player1 = Player(
         "right": pygame.K_d,
         "jump": pygame.K_SPACE,
         "down": pygame.K_s,
-        "attacking": pygame.K_f
+        "attacking": pygame.K_f,
+        "special": pygame.K_e,
+        "grab": pygame.K_g,
     },
     screen_size=(WIDTH, HEIGHT)
 )
@@ -36,7 +39,9 @@ player2 = Player(
         "right": pygame.K_RIGHT,
         "jump": pygame.K_UP,
         "down": pygame.K_DOWN,
-        "attacking": pygame.K_m
+        "attacking": pygame.K_m,
+        "special": pygame.K_i,
+        "grab": pygame.K_o,
     },
     screen_size=(WIDTH, HEIGHT)
 )
@@ -46,14 +51,53 @@ platforms = pygame.sprite.Group()
 hitboxes = pygame.sprite.Group()
 
 
+def _start_attack_from_input(player, keys, hitboxes, jab, ftilt, utilt, dtilt, nair, fair, bair, uair, dair):
+    left = keys[player.controls["left"]]
+    right = keys[player.controls["right"]]
+    up = keys[player.controls["jump"]]
+    down = keys[player.controls["down"]]
+    on_ground = getattr(player, "on_ground", True)
+    facing_right = getattr(player, "facing_right", True)
+    if on_ground:
+        if up:
+            player.start_attack(utilt, hitboxes)
+        elif down:
+            player.start_attack(dtilt, hitboxes)
+        elif left or right:
+            player.start_attack(ftilt, hitboxes)
+        else:
+            player.start_attack(jab, hitboxes)
+    else:
+        if up:
+            player.start_attack(uair, hitboxes)
+        elif down:
+            player.start_attack(dair, hitboxes)
+        elif (right and facing_right) or (left and not facing_right):
+            player.start_attack(fair, hitboxes)
+        elif (left and facing_right) or (right and not facing_right):
+            player.start_attack(bair, hitboxes)
+        else:
+            player.start_attack(nair, hitboxes)
+
+
 def draw_percent_hud(surface, player, x: int, y: int, align_left: bool = True):
     percent = int(player.stats.percent)
-    text = f"{percent}%"
-    img = FONT_PERCENT.render(text, True, player.color)
-    r = img.get_rect(midleft=(x, y) if align_left else (x, y))
-    if not align_left:
-        r.midright = (x, y)
-    surface.blit(img, r)
+    lives = player.lives
+    color = player.color if lives > 0 else (100, 100, 100)
+    text_stocks = f"{lives}"
+    text_percent = f"{percent}%"
+    img_stocks = FONT_PERCENT.render(text_stocks, True, color)
+    img_percent = FONT_PERCENT.render(text_percent, True, color)
+    if align_left:
+        r_stocks = img_stocks.get_rect(midleft=(x, y))
+        surface.blit(img_stocks, r_stocks)
+        r_percent = img_percent.get_rect(midleft=(r_stocks.right + 20, y))
+        surface.blit(img_percent, r_percent)
+    else:
+        r_percent = img_percent.get_rect(midright=(x, y))
+        surface.blit(img_percent, r_percent)
+        r_stocks = img_stocks.get_rect(midright=(r_percent.left - 20, y))
+        surface.blit(img_stocks, r_stocks)
 
 MAIN_W, MAIN_H = 1000, 25
 SMALL_W, SMALL_H = 220, 18
@@ -85,16 +129,40 @@ while running:
             running = False
 
         if event.type == pygame.KEYDOWN:
+            keys = pygame.key.get_pressed()
             if event.key == player1.controls["jump"]:
                 player1.jump()
             if event.key == player2.controls["jump"]:
                 player2.jump()
 
-            if event.key == player1.controls["attacking"]:
-                player1.start_attack("jab", hitboxes)
+            if event.key == player1.controls["attacking"] and player1.lives > 0:
+                _start_attack_from_input(player1, keys, hitboxes, "jab", "ftilt", "utilt", "dtilt", "nair", "fair", "bair", "uair", "dair")
+            if event.key == player2.controls["attacking"] and player2.lives > 0:
+                _start_attack_from_input(player2, keys, hitboxes, "jab", "ftilt", "utilt", "dtilt", "nair", "fair", "bair", "uair", "dair")
 
-            if event.key == player2.controls["attacking"]:
-                player2.start_attack("jab", hitboxes)
+            if event.key == player1.controls.get("grab") and player1.lives > 0:
+                player1.start_attack("grab", hitboxes)
+            if event.key == player2.controls.get("grab") and player2.lives > 0:
+                player2.start_attack("grab", hitboxes)
+
+            if event.key == player1.controls.get("special") and player1.lives > 0:
+                if keys[player1.controls["left"]] or keys[player1.controls["right"]]:
+                    player1.start_attack("side_special", hitboxes)
+                elif keys[player1.controls["jump"]]:
+                    player1.start_attack("up_special", hitboxes)
+                elif keys[player1.controls["down"]]:
+                    player1.start_attack("down_special", hitboxes)
+                else:
+                    ProjectileSprite(player1, hitboxes)
+            if event.key == player2.controls.get("special") and player2.lives > 0:
+                if keys[player2.controls["left"]] or keys[player2.controls["right"]]:
+                    player2.start_attack("side_special", hitboxes)
+                elif keys[player2.controls["jump"]]:
+                    player2.start_attack("up_special", hitboxes)
+                elif keys[player2.controls["down"]]:
+                    player2.start_attack("down_special", hitboxes)
+                else:
+                    ProjectileSprite(player2, hitboxes)
 
     player1.handle_input()
     player2.handle_input()

@@ -12,7 +12,8 @@ from .knockback import (
 )
 from .hitstun import compute_hitstun_frames
 from .attack import resolve_hit, HitResult, VictimStats, ActiveAttack, get_active_hitboxes
-from .attacks_data import ATTACKS, get_attack_hitboxes, AttackType
+from .attacks_data import ATTACKS, get_attack_hitboxes, AttackType, ATTACK_IDS_PROJECTILE
+from .projectile_sprite import ProjectileSprite
 
 __all__ = [
     "Hitbox",
@@ -35,4 +36,6 @@ __all__ = [
     "ATTACKS",
     "get_attack_hitboxes",
     "AttackType",
+    "ATTACK_IDS_PROJECTILE",
+    "ProjectileSprite",
 ]

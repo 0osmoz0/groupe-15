@@ -33,6 +33,7 @@ class Player(pygame.sprite.Sprite):
         self.jump_force = -12
 
         self.stats = Stats(weight=1.0)
+        self.lives = 3
         self.state = "idle"
         self.hitstun = 0
         self.facing_right = True
@@ -79,6 +80,8 @@ class Player(pygame.sprite.Sprite):
             self.stale_queue.pop(0)
 
     def handle_input(self):
+        if self.lives <= 0:
+            return
         if self.hitstun > 0:
             return
         keys = pygame.key.get_pressed()
@@ -119,6 +122,8 @@ class Player(pygame.sprite.Sprite):
 
 
     def update(self, others=[]):
+        if self.lives <= 0:
+            return
         self.update_di()
         self.prev_y = self.rect.y
         self.on_ground = False
@@ -174,4 +179,8 @@ class Player(pygame.sprite.Sprite):
             or self.rect.bottom < -self.BLAST_MARGIN
             or self.rect.top > self.screen_height + self.BLAST_MARGIN
         ):
-            self.respawn()
+            self.lives -= 1
+            if self.lives > 0:
+                self.respawn()
+            else:
+                self.rect.center = (-999, -999)
