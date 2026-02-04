@@ -117,6 +117,24 @@ except Exception:
     PING_P2 = None
 PING_OFFSET_ABOVE = 15
 
+_judy_portrait_path = os.path.join(_base_dir, "assets", "JUDY_HOPPS", "PP_judy.png", "PP.png")
+_nick_portrait_path = os.path.join(_base_dir, "assets", "Nick", "nick_PP", "PP.png")
+PORTRAIT_HEIGHT = 200
+PORTRAIT_SIDE_MARGIN = 20
+HUD_BOTTOM_Y_OFFSET = 35
+try:
+    _judy_pp = pygame.image.load(_judy_portrait_path).convert_alpha()
+    _jw = int(_judy_pp.get_width() * PORTRAIT_HEIGHT / _judy_pp.get_height())
+    JUDY_PORTRAIT = pygame.transform.smoothscale(_judy_pp, (_jw, PORTRAIT_HEIGHT))
+except Exception:
+    JUDY_PORTRAIT = None
+try:
+    _nick_pp = pygame.image.load(_nick_portrait_path).convert_alpha()
+    _nw = int(_nick_pp.get_width() * PORTRAIT_HEIGHT / _nick_pp.get_height())
+    NICK_PORTRAIT = pygame.transform.smoothscale(_nick_pp, (_nw, PORTRAIT_HEIGHT))
+except Exception:
+    NICK_PORTRAIT = None
+
 nick_win_frame_index = 0
 nick_win_frame_timer_ms = 0
 judy_win_frame_index = 0
@@ -648,8 +666,17 @@ while running:
 
     screen.blit(world_surface, (0, 0), (int(camera_x), int(camera_y), _screen_w, _screen_h))
 
-    draw_percent_hud(screen, player1, 80, 60, align_left=True)
-    draw_percent_hud(screen, player2, _screen_w - 80, 60, align_left=False)
+    _hud_y = _screen_h - HUD_BOTTOM_Y_OFFSET
+    draw_percent_hud(screen, player1, 80, _hud_y, align_left=True)
+    draw_percent_hud(screen, player2, _screen_w - 80, _hud_y, align_left=False)
+
+    _portrait_bottom = _hud_y - 25
+    if JUDY_PORTRAIT:
+        judy_rect = JUDY_PORTRAIT.get_rect(bottomleft=(PORTRAIT_SIDE_MARGIN, _portrait_bottom))
+        screen.blit(JUDY_PORTRAIT, judy_rect.topleft)
+    if NICK_PORTRAIT:
+        nick_rect = NICK_PORTRAIT.get_rect(bottomright=(_screen_w - PORTRAIT_SIDE_MARGIN, _portrait_bottom))
+        screen.blit(NICK_PORTRAIT, nick_rect.topleft)
 
     pygame.display.flip()
     clock.tick(60)
