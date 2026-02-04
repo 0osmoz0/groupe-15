@@ -8,6 +8,8 @@ class Player(pygame.sprite.Sprite):
     STALE_QUEUE_MAX = 9
     STALE_DECAY_PER_USE = 0.09
     CROUCH_CANCEL_MULT = 0.67
+    BLAST_MARGIN = 250
+    RESPAWN_INVULN_FRAMES = 120
 
     def __init__(self, start_pos, color, controls, screen_size):
         super().__init__()
@@ -17,6 +19,7 @@ class Player(pygame.sprite.Sprite):
         self.image = pygame.Surface((50, 50))
         self.image.fill(color)
         self.rect = self.image.get_rect(topleft=start_pos)
+        self.spawn_pos = start_pos
         self.prev_y = self.rect.y
         self.drop_through = False
 
@@ -38,6 +41,20 @@ class Player(pygame.sprite.Sprite):
         self.di_angle_rad = None
         self.stale_queue = []
         self.gravity_for_kb = 0.05
+        self.respawn_invuln = 0
+
+    def respawn(self):
+        self.rect.topleft = self.spawn_pos
+        self.speed_x = 0
+        self.speed_y = 0
+        self.hitstun = 0
+        self.tumbling = False
+        self.crouching = False
+        self.on_ground = False
+        self.jump_count = 0
+        self.stats.percent = 0
+        self.state = "idle"
+        self.respawn_invuln = self.RESPAWN_INVULN_FRAMES
 
     def update_di(self):
         keys = pygame.key.get_pressed()
@@ -90,6 +107,8 @@ class Player(pygame.sprite.Sprite):
     KNOCKBACK_SCALE = 5.0
 
     def receive_hit(self, hit_result):
+        if self.respawn_invuln > 0:
+            return
         self.stats.take_damage(hit_result.damage_dealt)
         self.speed_x = hit_result.velocity_x * self.KNOCKBACK_SCALE
         self.speed_y = hit_result.velocity_y * self.KNOCKBACK_SCALE
@@ -103,6 +122,8 @@ class Player(pygame.sprite.Sprite):
         self.update_di()
         self.prev_y = self.rect.y
         self.on_ground = False
+        if self.respawn_invuln > 0:
+            self.respawn_invuln -= 1
 
         if self.hitstun > 0:
             self.hitstun -= 1
@@ -143,21 +164,14 @@ class Player(pygame.sprite.Sprite):
                 elif self.speed_y < 0:
                     self.rect.top = other.rect.bottom
                     self.speed_y = 0
-        if self.rect.bottom >= self.screen_height:
-            self.on_ground = True
         down_key = self.controls.get("down", pygame.K_s)
         if self.on_ground and pygame.key.get_pressed()[down_key]:
             self.crouching = True
-        if self.rect.left < 0:
-            self.rect.left = 0
-        if self.rect.right > self.screen_width:
-            self.rect.right = self.screen_width
 
-        if self.rect.top < 0:
-            self.rect.top = 0
-            self.speed_y = 0
-
-        if self.rect.bottom > self.screen_height:
-            self.rect.bottom = self.screen_height
-            self.speed_y = 0
-            self.jump_count = 0
+        if (
+            self.rect.right < -self.BLAST_MARGIN
+            or self.rect.left > self.screen_width + self.BLAST_MARGIN
+            or self.rect.bottom < -self.BLAST_MARGIN
+            or self.rect.top > self.screen_height + self.BLAST_MARGIN
+        ):
+            self.respawn()

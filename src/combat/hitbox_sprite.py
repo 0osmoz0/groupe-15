@@ -59,6 +59,8 @@ class HitboxSprite(pygame.sprite.Sprite):
                 continue
             if not getattr(victim, "rect", None):
                 continue
+            if getattr(victim, "respawn_invuln", 0) > 0:
+                continue
             vx, vy = victim.rect.centerx, victim.rect.centery
 
             for hb in active:

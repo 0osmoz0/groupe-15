@@ -46,13 +46,6 @@ platforms = pygame.sprite.Group()
 hitboxes = pygame.sprite.Group()
 
 
-def draw_grid(screen, spacing=100):
-    for x in range(0, WIDTH, spacing):
-        pygame.draw.line(screen, (40, 40, 40), (x, 0), (x, HEIGHT))
-    for y in range(0, HEIGHT, spacing):
-        pygame.draw.line(screen, (40, 40, 40), (0, y), (WIDTH, y))
-
-
 def draw_percent_hud(surface, player, x: int, y: int, align_left: bool = True):
     percent = int(player.stats.percent)
     text = f"{percent}%"
@@ -118,7 +111,6 @@ while running:
 
     platforms.draw(screen)
     players.draw(screen)
-    draw_grid(screen)
 
     draw_percent_hud(screen, player1, 80, 60, align_left=True)
     draw_percent_hud(screen, player2, WIDTH - 80, 60, align_left=False)
