@@ -75,13 +75,76 @@ except Exception:
 
 _nick_win_gif_path = os.path.join(_base_dir, "assets", "Nick", "win_nick", "1.gif")
 _judy_win_gif_path = os.path.join(_base_dir, "assets", "JUDY_HOPPS", "judy_win", "1 (1).gif")
+_title_screen_path = os.path.join(_base_dir, "assets", "BG_perso", "1.png")
+_versus_gif_path = os.path.join(_base_dir, "assets", "BG_perso", "1 (4).gif")
+_versus_gif_p1_confirm_path = os.path.join(_base_dir, "assets", "BG_perso", "1 (5).gif")
+_enter_gif_path = os.path.join(_base_dir, "assets", "BG_perso", "1 (2).gif")
+_enter_then_a_gif_path = os.path.join(_base_dir, "assets", "BG_perso", "1 (3).gif")
 NICK_WIN_FRAMES = load_gif_frames(_nick_win_gif_path, scale_size=(_screen_w, _screen_h))
+VERSUS_GIF_FRAMES = load_gif_frames(_versus_gif_path, scale_size=(_screen_w, _screen_h))
+P1_CONFIRM_GIF_FRAMES = load_gif_frames(_versus_gif_p1_confirm_path, scale_size=(_screen_w, _screen_h))
+ENTER_GIF_FRAMES = load_gif_frames(_enter_gif_path, scale_size=(_screen_w, _screen_h))
+ENTER_THEN_A_GIF_FRAMES = load_gif_frames(_enter_then_a_gif_path, scale_size=(_screen_w, _screen_h))
 JUDY_WIN_FRAMES = load_gif_frames(_judy_win_gif_path, scale_size=(_screen_w, _screen_h))
+try:
+    _title_img = pygame.image.load(_title_screen_path).convert()
+    TITLE_SCREEN = pygame.transform.smoothscale(_title_img, (_screen_w, _screen_h))
+except Exception:
+    TITLE_SCREEN = None
+
+_counter_dir = os.path.join(_base_dir, "assets", "counter")
+COUNTER_HEIGHT = 180
+COUNTER_SURFACES = []
+for name in ("3.png", "2.png", "1.png", "go.png"):
+    try:
+        img = pygame.image.load(os.path.join(_counter_dir, name)).convert_alpha()
+        w = int(img.get_width() * COUNTER_HEIGHT / img.get_height())
+        COUNTER_SURFACES.append(pygame.transform.smoothscale(img, (w, COUNTER_HEIGHT)))
+    except Exception:
+        COUNTER_SURFACES.append(None)
+
+_ping_dir = os.path.join(_base_dir, "assets", "Ping")
+PING_HEIGHT = 60
+try:
+    _p1_img = pygame.image.load(os.path.join(_ping_dir, "P1.png")).convert_alpha()
+    PING_P1 = pygame.transform.smoothscale(_p1_img, (int(_p1_img.get_width() * PING_HEIGHT / _p1_img.get_height()), PING_HEIGHT))
+except Exception:
+    PING_P1 = None
+try:
+    _p2_img = pygame.image.load(os.path.join(_ping_dir, "P2.png")).convert_alpha()
+    PING_P2 = pygame.transform.smoothscale(_p2_img, (int(_p2_img.get_width() * PING_HEIGHT / _p2_img.get_height()), PING_HEIGHT))
+except Exception:
+    PING_P2 = None
+PING_OFFSET_ABOVE = 15
+
 nick_win_frame_index = 0
 nick_win_frame_timer_ms = 0
 judy_win_frame_index = 0
 judy_win_frame_timer_ms = 0
-game_state = "playing"
+game_state = "title_screen"
+countdown_step = 0
+countdown_timer_ms = 0
+COUNTDOWN_DURATION_MS = 1000
+versus_gif_frame_index = 0
+versus_gif_timer_ms = 0
+versus_gif_phase = "playing"
+wait_after_gif_timer_ms = 0
+WAIT_AFTER_GIF_MS = 2000
+p1_confirm_frame_index = 0
+p1_confirm_timer_ms = 0
+p1_confirm_phase = "playing"
+wait_after_p1_confirm_timer_ms = 0
+WAIT_AFTER_P1_CONFIRM_MS = 2000
+enter_gif_frame_index = 0
+enter_gif_timer_ms = 0
+enter_gif_phase = "playing"
+wait_after_enter_gif_timer_ms = 0
+enter_then_a_frame_index = 0
+enter_then_a_timer_ms = 0
+enter_then_a_phase = "playing"
+wait_after_enter_then_a_timer_ms = 0
+WAIT_AFTER_ENTER_GIF_MS = 2000
+WAIT_AFTER_ENTER_THEN_A_MS = 2000
 
 player1 = Player(
     start_pos=(WORLD_W // 2 - 200, WORLD_H // 2),
@@ -150,6 +213,14 @@ def _start_attack_from_input(player, keys, hitboxes, jab, ftilt, utilt, dtilt, n
             player.start_attack(nair, hitboxes)
 
 
+def draw_player_ping(surface, player, ping_surface):
+    """Dessine l'indicateur P1/P2 au-dessus du joueur (comme Smash Bros)."""
+    if ping_surface is None or getattr(player, "lives", 1) <= 0:
+        return
+    r = ping_surface.get_rect(centerx=player.rect.centerx, bottom=player.rect.top - PING_OFFSET_ABOVE)
+    surface.blit(ping_surface, r.topleft)
+
+
 def draw_percent_hud(surface, player, x: int, y: int, align_left: bool = True):
     percent = int(player.stats.percent)
     lives = player.lives
@@ -194,6 +265,245 @@ platforms.add(
 
 running = True
 while running:
+    if game_state == "title_screen":
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_a:
+                game_state = "versus_gif"
+                versus_gif_frame_index = 0
+                versus_gif_timer_ms = 0
+                versus_gif_phase = "playing"
+                wait_after_gif_timer_ms = 0
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
+                game_state = "versus_gif_enter"
+                enter_gif_frame_index = 0
+                enter_gif_timer_ms = 0
+                enter_gif_phase = "playing"
+                wait_after_enter_gif_timer_ms = 0
+        if not running:
+            break
+        if game_state == "title_screen":
+            if TITLE_SCREEN:
+                screen.blit(TITLE_SCREEN, (0, 0))
+            pygame.display.flip()
+            clock.tick(60)
+            continue
+
+    if game_state == "versus_gif_enter":
+        dt_ms = clock.get_time()
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_a:
+                game_state = "versus_gif_enter_then_a"
+                enter_then_a_frame_index = 0
+                enter_then_a_timer_ms = 0
+                enter_then_a_phase = "playing"
+                wait_after_enter_then_a_timer_ms = 0
+        if not running:
+            break
+        if enter_gif_phase == "playing" and ENTER_GIF_FRAMES:
+            enter_gif_timer_ms += dt_ms
+            surf, duration_ms = ENTER_GIF_FRAMES[enter_gif_frame_index]
+            while enter_gif_timer_ms >= duration_ms:
+                enter_gif_timer_ms -= duration_ms
+                enter_gif_frame_index += 1
+                if enter_gif_frame_index >= len(ENTER_GIF_FRAMES):
+                    enter_gif_phase = "waiting"
+                    enter_gif_frame_index = len(ENTER_GIF_FRAMES) - 1
+                    break
+                surf, duration_ms = ENTER_GIF_FRAMES[enter_gif_frame_index]
+            if ENTER_GIF_FRAMES:
+                surf, _ = ENTER_GIF_FRAMES[enter_gif_frame_index]
+                screen.blit(surf, (0, 0))
+        elif enter_gif_phase == "waiting":
+            wait_after_enter_gif_timer_ms += dt_ms
+            if ENTER_GIF_FRAMES:
+                surf, _ = ENTER_GIF_FRAMES[-1]
+                screen.blit(surf, (0, 0))
+            if wait_after_enter_gif_timer_ms >= WAIT_AFTER_ENTER_GIF_MS:
+                game_state = "versus_gif_enter_then_a"
+                enter_then_a_frame_index = 0
+                enter_then_a_timer_ms = 0
+                enter_then_a_phase = "playing"
+                wait_after_enter_then_a_timer_ms = 0
+        else:
+            game_state = "versus_gif_enter_then_a"
+            enter_then_a_frame_index = 0
+            enter_then_a_timer_ms = 0
+            enter_then_a_phase = "playing"
+            wait_after_enter_then_a_timer_ms = 0
+        pygame.display.flip()
+        clock.tick(60)
+        continue
+
+    if game_state == "versus_gif_enter_then_a":
+        dt_ms = clock.get_time()
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+        if not running:
+            break
+        if enter_then_a_phase == "playing" and ENTER_THEN_A_GIF_FRAMES:
+            enter_then_a_timer_ms += dt_ms
+            surf, duration_ms = ENTER_THEN_A_GIF_FRAMES[enter_then_a_frame_index]
+            while enter_then_a_timer_ms >= duration_ms:
+                enter_then_a_timer_ms -= duration_ms
+                enter_then_a_frame_index += 1
+                if enter_then_a_frame_index >= len(ENTER_THEN_A_GIF_FRAMES):
+                    enter_then_a_phase = "waiting"
+                    enter_then_a_frame_index = len(ENTER_THEN_A_GIF_FRAMES) - 1
+                    break
+                surf, duration_ms = ENTER_THEN_A_GIF_FRAMES[enter_then_a_frame_index]
+            if ENTER_THEN_A_GIF_FRAMES:
+                surf, _ = ENTER_THEN_A_GIF_FRAMES[enter_then_a_frame_index]
+                screen.blit(surf, (0, 0))
+        elif enter_then_a_phase == "waiting":
+            wait_after_enter_then_a_timer_ms += dt_ms
+            if ENTER_THEN_A_GIF_FRAMES:
+                surf, _ = ENTER_THEN_A_GIF_FRAMES[-1]
+                screen.blit(surf, (0, 0))
+            if wait_after_enter_then_a_timer_ms >= WAIT_AFTER_ENTER_THEN_A_MS:
+                game_state = "countdown"
+                countdown_step = 0
+                countdown_timer_ms = 0
+        else:
+            game_state = "countdown"
+            countdown_step = 0
+            countdown_timer_ms = 0
+        pygame.display.flip()
+        clock.tick(60)
+        continue
+
+    if game_state == "versus_gif":
+        dt_ms = clock.get_time()
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
+                game_state = "versus_gif_p1_confirm"
+                p1_confirm_frame_index = 0
+                p1_confirm_timer_ms = 0
+                p1_confirm_phase = "playing"
+                wait_after_p1_confirm_timer_ms = 0
+        if not running:
+            break
+        if versus_gif_phase == "playing" and VERSUS_GIF_FRAMES:
+            versus_gif_timer_ms += dt_ms
+            surf, duration_ms = VERSUS_GIF_FRAMES[versus_gif_frame_index]
+            while versus_gif_timer_ms >= duration_ms:
+                versus_gif_timer_ms -= duration_ms
+                versus_gif_frame_index += 1
+                if versus_gif_frame_index >= len(VERSUS_GIF_FRAMES):
+                    versus_gif_phase = "waiting"
+                    versus_gif_frame_index = len(VERSUS_GIF_FRAMES) - 1
+                    break
+                surf, duration_ms = VERSUS_GIF_FRAMES[versus_gif_frame_index]
+            if VERSUS_GIF_FRAMES:
+                surf, _ = VERSUS_GIF_FRAMES[versus_gif_frame_index]
+                screen.blit(surf, (0, 0))
+        elif versus_gif_phase == "waiting":
+            wait_after_gif_timer_ms += dt_ms
+            if VERSUS_GIF_FRAMES:
+                surf, _ = VERSUS_GIF_FRAMES[-1]
+                screen.blit(surf, (0, 0))
+            if wait_after_gif_timer_ms >= WAIT_AFTER_GIF_MS:
+                game_state = "wait_p1_enter"
+        else:
+            game_state = "wait_p1_enter"
+        pygame.display.flip()
+        clock.tick(60)
+        continue
+
+    if game_state == "wait_p1_enter":
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
+                game_state = "versus_gif_p1_confirm"
+                p1_confirm_frame_index = 0
+                p1_confirm_timer_ms = 0
+                p1_confirm_phase = "playing"
+                wait_after_p1_confirm_timer_ms = 0
+        if not running:
+            break
+        if VERSUS_GIF_FRAMES:
+            surf, _ = VERSUS_GIF_FRAMES[-1]
+            screen.blit(surf, (0, 0))
+        pygame.display.flip()
+        clock.tick(60)
+        continue
+
+    if game_state == "versus_gif_p1_confirm":
+        dt_ms = clock.get_time()
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+        if not running:
+            break
+        if p1_confirm_phase == "playing" and P1_CONFIRM_GIF_FRAMES:
+            p1_confirm_timer_ms += dt_ms
+            surf, duration_ms = P1_CONFIRM_GIF_FRAMES[p1_confirm_frame_index]
+            while p1_confirm_timer_ms >= duration_ms:
+                p1_confirm_timer_ms -= duration_ms
+                p1_confirm_frame_index += 1
+                if p1_confirm_frame_index >= len(P1_CONFIRM_GIF_FRAMES):
+                    p1_confirm_phase = "waiting"
+                    p1_confirm_frame_index = len(P1_CONFIRM_GIF_FRAMES) - 1
+                    break
+                surf, duration_ms = P1_CONFIRM_GIF_FRAMES[p1_confirm_frame_index]
+            if P1_CONFIRM_GIF_FRAMES:
+                surf, _ = P1_CONFIRM_GIF_FRAMES[p1_confirm_frame_index]
+                screen.blit(surf, (0, 0))
+        elif p1_confirm_phase == "waiting":
+            wait_after_p1_confirm_timer_ms += dt_ms
+            if P1_CONFIRM_GIF_FRAMES:
+                surf, _ = P1_CONFIRM_GIF_FRAMES[-1]
+                screen.blit(surf, (0, 0))
+            if wait_after_p1_confirm_timer_ms >= WAIT_AFTER_P1_CONFIRM_MS:
+                game_state = "countdown"
+                countdown_step = 0
+                countdown_timer_ms = 0
+        else:
+            game_state = "countdown"
+            countdown_step = 0
+            countdown_timer_ms = 0
+        pygame.display.flip()
+        clock.tick(60)
+        continue
+
+    if game_state == "countdown":
+        dt_ms = clock.get_time()
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+        if not running:
+            break
+        countdown_timer_ms += dt_ms
+        if countdown_timer_ms >= COUNTDOWN_DURATION_MS:
+            countdown_timer_ms = 0
+            countdown_step += 1
+            if countdown_step >= 4:
+                game_state = "playing"
+                pygame.display.flip()
+                clock.tick(60)
+                continue
+        world_surface.blit(BACKGROUND, (0, 0))
+        platforms.draw(world_surface)
+        players.draw(world_surface)
+        draw_player_ping(world_surface, player1, PING_P1)
+        draw_player_ping(world_surface, player2, PING_P2)
+        screen.blit(world_surface, (0, 0), (int(camera_x), int(camera_y), _screen_w, _screen_h))
+        if countdown_step < 4 and COUNTER_SURFACES and COUNTER_SURFACES[countdown_step]:
+            surf = COUNTER_SURFACES[countdown_step]
+            x = (_screen_w - surf.get_width()) // 2
+            y = (_screen_h - surf.get_height()) // 2
+            screen.blit(surf, (x, y))
+        pygame.display.flip()
+        clock.tick(60)
+        continue
+
     if game_state == "playing" and player1.lives <= 0 and player2.lives > 0 and getattr(player2, "character", None) == "nick":
         game_state = "nick_wins"
         nick_win_frame_index = 0
@@ -333,6 +643,8 @@ while running:
         hb.draw_hitboxes_debug(world_surface)
     platforms.draw(world_surface)
     players.draw(world_surface)
+    draw_player_ping(world_surface, player1, PING_P1)
+    draw_player_ping(world_surface, player2, PING_P2)
 
     screen.blit(world_surface, (0, 0), (int(camera_x), int(camera_y), _screen_w, _screen_h))
 
