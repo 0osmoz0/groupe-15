@@ -1,12 +1,18 @@
+import math
 import pygame
 from .attacks_data import get_projectile_hitbox
 from .attack import (
     resolve_hit,
     check_hitbox_vs_circle,
     VictimStats,
+    HitResult,
 )
+from .knockback import KnockbackResult
 
 HURTBOX_RADIUS = 25
+COUNTER_DAMAGE = 6
+COUNTER_HITSTUN = 18
+COUNTER_LAUNCH_SPEED = 4
 PROJECTILE_SPEED = 14
 PROJECTILE_LIFETIME = 90
 PROJECTILE_SIZE = 20
@@ -82,9 +88,29 @@ class ProjectileSprite(pygame.sprite.Sprite):
                 stale_damage_mult=stale_mult,
             )
             if result is not None:
-                victim.receive_hit(result)
-                if hasattr(self.owner, "push_stale"):
-                    self.owner.push_stale("neutral_special")
+                counter_remaining = getattr(victim, "_counter_remaining", 0)
+                if counter_remaining > 0:
+                    victim._counter_remaining = 0
+                    ax, ay = self.owner.rect.centerx, self.owner.rect.centery
+                    dx = ax - vx
+                    dy = ay - vy
+                    dist = math.sqrt(dx * dx + dy * dy) or 1.0
+                    vx_out = (dx / dist) * COUNTER_LAUNCH_SPEED
+                    vy_out = (dy / dist) * COUNTER_LAUNCH_SPEED
+                    dummy_kb = KnockbackResult(0, 0, 0, vx_out, vy_out)
+                    counter_result = HitResult(
+                        COUNTER_DAMAGE,
+                        dummy_kb,
+                        COUNTER_HITSTUN,
+                        True,
+                        vx_out,
+                        vy_out,
+                    )
+                    self.owner.receive_hit(counter_result)
+                else:
+                    victim.receive_hit(result)
+                    if hasattr(self.owner, "push_stale"):
+                        self.owner.push_stale("neutral_special")
                 self.hit_players.add(id(victim))
             self.kill()
             return

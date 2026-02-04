@@ -1,8 +1,69 @@
 import math
+import os
 import pygame
 from player.stats import Stats
 from combat.hitbox_sprite import HitboxSprite
 from combat.knockback import decay_launch_speed
+
+WALK_ANIM_FRAMES = 8
+SPRITE_HEIGHT = 130
+ATTACK_ANIM_DURATION = 24
+ATTACK_ANIM_FRAME_DURATION = 8
+
+
+def _load_walk_frames(character: str):
+    base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if character == "nick":
+        folder = os.path.join(base, "assets", "Nick", "nick_walk")
+        paths = [os.path.join(folder, "1.png"), os.path.join(folder, "2.png")]
+    else:
+        folder = os.path.join(base, "assets", "JUDY_HOPPS", "judy_hopps_walk")
+        paths = [os.path.join(folder, "1.png"), os.path.join(folder, "2.png"), os.path.join(folder, "3.png")]
+    frames_raw = [pygame.image.load(p).convert_alpha() for p in paths]
+    h = SPRITE_HEIGHT
+    w = max(max(1, int(f.get_width() * h / f.get_height())) for f in frames_raw)
+    return [pygame.transform.smoothscale(f, (w, h)) for f in frames_raw]
+
+
+def _load_attack_frames(character: str):
+    base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    h = SPRITE_HEIGHT
+    if character == "nick":
+        folder = os.path.join(base, "assets", "Nick", "nick_atack")
+        paths = [os.path.join(folder, "1.png"), os.path.join(folder, "2.png"), os.path.join(folder, "3.png")]
+    else:
+        folder = os.path.join(base, "assets", "JUDY_HOPPS", "judy_attack_normal")
+        paths = [os.path.join(folder, f"{i}.png") for i in range(1, 7)]
+    frames_raw = [pygame.image.load(p).convert_alpha() for p in paths]
+    max_w = max(max(1, int(f.get_width() * h / f.get_height())) for f in frames_raw)
+    return [pygame.transform.smoothscale(f, (max_w, h)) for f in frames_raw]
+
+
+def _load_distance_attack_frame(character: str):
+    if character != "nick":
+        return None
+    base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    path = os.path.join(base, "assets", "Nick", "nick_distance_attack", "1.png")
+    img = pygame.image.load(path).convert_alpha()
+    h = SPRITE_HEIGHT
+    w = max(1, int(img.get_width() * h / img.get_height()))
+    return pygame.transform.smoothscale(img, (w, h))
+
+
+def _load_counter_frame(character: str):
+    if character != "nick":
+        return None
+    base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    path = os.path.join(base, "assets", "Nick", "nick_hold", "1.png")
+    img = pygame.image.load(path).convert_alpha()
+    h = SPRITE_HEIGHT
+    w = max(1, int(img.get_width() * h / img.get_height()))
+    return pygame.transform.smoothscale(img, (w, h))
+
+
+DISTANCE_ATTACK_DURATION = 28
+COUNTER_DURATION = 40
+
 
 class Player(pygame.sprite.Sprite):
     STALE_QUEUE_MAX = 9
@@ -11,13 +72,40 @@ class Player(pygame.sprite.Sprite):
     BLAST_MARGIN = 250
     RESPAWN_INVULN_FRAMES = 120
 
-    def __init__(self, start_pos, color, controls, screen_size):
+    _walk_frames_cache = {}
+    _attack_frames_cache = {}
+    _distance_attack_frame_cache = {}
+    _counter_frame_cache = {}
+
+    def __init__(self, start_pos, color, controls, screen_size, character: str = "judy"):
         super().__init__()
         self.screen_width, self.screen_height = screen_size
         self.color = color
+        self.character = character
 
-        self.image = pygame.Surface((50, 50))
-        self.image.fill(color)
+        if character not in Player._walk_frames_cache:
+            Player._walk_frames_cache[character] = _load_walk_frames(character)
+        if character not in Player._attack_frames_cache:
+            Player._attack_frames_cache[character] = _load_attack_frames(character)
+        if character not in Player._distance_attack_frame_cache:
+            Player._distance_attack_frame_cache[character] = _load_distance_attack_frame(character)
+        if character not in Player._counter_frame_cache:
+            Player._counter_frame_cache[character] = _load_counter_frame(character)
+        self._walk_frames = Player._walk_frames_cache[character]
+        self._attack_frames = Player._attack_frames_cache[character]
+        self._distance_attack_frame = Player._distance_attack_frame_cache[character]
+        self._counter_frame = Player._counter_frame_cache[character]
+        self._walk_index = 0
+        self._anim_timer = 0
+        self._attack_animation_remaining = 0
+        self._attack_animation_variant = 0
+        self._attack_frame_index = 0
+        self._attack_frame_timer = 0
+        self._attack_variant_toggle = 0
+        self._distance_attack_remaining = 0
+        self._counter_remaining = 0
+
+        self.image = self._walk_frames[0].copy()
         self.rect = self.image.get_rect(topleft=start_pos)
         self.spawn_pos = start_pos
         self.prev_y = self.rect.y
@@ -26,11 +114,17 @@ class Player(pygame.sprite.Sprite):
         self.controls = controls
         self.speed_x = 0
         self.speed_y = 0
-        self.gravity = 0.5
+        self.gravity = 0.42
         self.move_speed = 5
+        self.air_move_mult = 0.95
         self.jump_count = 0
         self.jump_max = 2
-        self.jump_force = -12
+        self.jump_force = -15.5
+        self.double_jump_mult = 1.1
+        self.jump_cut_speed = -6.0
+        self.coyote_frames = 0
+        self.jump_buffer_frames = 0
+        self._jump_held = False
 
         self.stats = Stats(weight=1.0)
         self.lives = 3
@@ -43,6 +137,7 @@ class Player(pygame.sprite.Sprite):
         self.stale_queue = []
         self.gravity_for_kb = 0.05
         self.respawn_invuln = 0
+        self.on_ground = False
 
     def respawn(self):
         self.rect.topleft = self.spawn_pos
@@ -79,6 +174,9 @@ class Player(pygame.sprite.Sprite):
         if len(self.stale_queue) > self.STALE_QUEUE_MAX:
             self.stale_queue.pop(0)
 
+    COYOTE_FRAMES = 10
+    JUMP_BUFFER_FRAMES = 8
+
     def handle_input(self):
         if self.lives <= 0:
             return
@@ -87,25 +185,92 @@ class Player(pygame.sprite.Sprite):
         keys = pygame.key.get_pressed()
         self.speed_x = 0
 
+        move = self.move_speed if self.on_ground else self.move_speed * self.air_move_mult
         if keys[self.controls["left"]]:
-            self.speed_x = -self.move_speed
+            self.speed_x = -move
             self.facing_right = False
         if keys[self.controls["right"]]:
-            self.speed_x = self.move_speed
+            self.speed_x = move
             self.facing_right = True
 
         self.drop_through = keys[self.controls.get("down", pygame.K_s)] and keys[self.controls["jump"]]
+        self._jump_held = keys[self.controls["jump"]]
 
     def start_attack(self, attack_id: str, hitboxes_group, charge_mult: float = 1.0):
         hb = HitboxSprite(owner=self, attack_id=attack_id, charge_mult=charge_mult)
         hitboxes_group.add(hb)
+        self._attack_animation_remaining = ATTACK_ANIM_DURATION
+        self._attack_animation_variant = self._attack_variant_toggle
+        self._attack_variant_toggle = (self._attack_variant_toggle + 1) % 2
+        self._attack_frame_index = 0
+        self._attack_frame_timer = 0
 
+    def start_distance_attack_animation(self):
+        if self._distance_attack_frame is not None:
+            self._distance_attack_remaining = DISTANCE_ATTACK_DURATION
+
+    def start_counter(self):
+        self._counter_remaining = COUNTER_DURATION
+
+    def _update_walk_animation(self):
+        if self._counter_remaining > 0:
+            self._counter_remaining -= 1
+            if self._counter_frame is not None:
+                flip_x = self.facing_right if self.character == "nick" else not self.facing_right
+                self.image = pygame.transform.flip(self._counter_frame, flip_x, False)
+            return
+        if self._distance_attack_remaining > 0:
+            self._distance_attack_remaining -= 1
+            if self._distance_attack_frame is not None:
+                flip_x = self.facing_right if self.character == "nick" else not self.facing_right
+                self.image = pygame.transform.flip(self._distance_attack_frame, flip_x, False)
+            return
+        if self._attack_animation_remaining > 0:
+            self._attack_animation_remaining -= 1
+            self._attack_frame_timer += 1
+            if self._attack_frame_timer >= ATTACK_ANIM_FRAME_DURATION:
+                self._attack_frame_timer = 0
+                self._attack_frame_index = min(2, self._attack_frame_index + 1)
+            if self.character == "nick":
+                idx = min(self._attack_frame_index, len(self._attack_frames) - 1)
+            else:
+                idx = (self._attack_animation_variant * 3) + self._attack_frame_index
+            frame = self._attack_frames[idx]
+            flip_x = self.facing_right if self.character == "nick" else not self.facing_right
+            self.image = pygame.transform.flip(frame, flip_x, False)
+            return
+        if self.speed_x != 0:
+            self._anim_timer += 1
+            if self._anim_timer >= WALK_ANIM_FRAMES:
+                self._anim_timer = 0
+                n = len(self._walk_frames)
+                step = 1 if self.facing_right else -1
+                self._walk_index = (self._walk_index + step) % n
+        else:
+            self._walk_index = 0
+            self._anim_timer = 0
+        frame = self._walk_frames[self._walk_index]
+        flip_x = self.facing_right if self.character == "nick" else not self.facing_right
+        self.image = pygame.transform.flip(frame, flip_x, False)
 
     def jump(self):
-        if self.jump_count < self.jump_max:
-            self.speed_y = self.jump_force * (1.1 if self.jump_count > 0 else 1)
+        if self.coyote_frames > 0:
+            self.speed_y = self.jump_force
+            self.jump_count = 1
+            self.drop_through = False
+            self.coyote_frames = 0
+            self.jump_buffer_frames = 0
+            self._jump_held = True
+        elif self.jump_count < self.jump_max:
+            mult = self.double_jump_mult if self.jump_count > 0 else 1.0
+            self.speed_y = self.jump_force * mult
             self.jump_count += 1
             self.drop_through = False
+            self.coyote_frames = 0
+            self.jump_buffer_frames = 0
+            self._jump_held = True
+        else:
+            self.jump_buffer_frames = self.JUMP_BUFFER_FRAMES
 
     KNOCKBACK_SCALE = 5.0
 
@@ -126,6 +291,7 @@ class Player(pygame.sprite.Sprite):
             return
         self.update_di()
         self.prev_y = self.rect.y
+        prev_on_ground = self.on_ground
         self.on_ground = False
         if self.respawn_invuln > 0:
             self.respawn_invuln -= 1
@@ -139,6 +305,9 @@ class Player(pygame.sprite.Sprite):
         self.crouching = False
         self.speed_y += self.gravity
 
+        if not self._jump_held and self.speed_y < 0:
+            self.speed_y = max(self.speed_y, self.jump_cut_speed)
+
         self.rect.x += int(self.speed_x)
         self.rect.y += int(self.speed_y)
 
@@ -147,6 +316,24 @@ class Player(pygame.sprite.Sprite):
                 continue
 
             if not self.rect.colliderect(other.rect):
+                continue
+
+            is_other_player = getattr(other, "lives", None) is not None
+            if is_other_player:
+                overlap_left = max(0, self.rect.right - other.rect.left)
+                overlap_right = max(0, other.rect.right - self.rect.left)
+                overlap_top = max(0, self.rect.bottom - other.rect.top)
+                overlap_bottom = max(0, other.rect.bottom - self.rect.top)
+                min_overlap = min(overlap_left, overlap_right, overlap_top, overlap_bottom)
+                if min_overlap > 0:
+                    if min_overlap == overlap_left:
+                        self.rect.x -= overlap_left
+                    elif min_overlap == overlap_right:
+                        self.rect.x += overlap_right
+                    elif min_overlap == overlap_top:
+                        self.rect.y -= overlap_top
+                    else:
+                        self.rect.y += overlap_bottom
                 continue
 
             one_way = getattr(other, "one_way", False)
@@ -172,6 +359,23 @@ class Player(pygame.sprite.Sprite):
         down_key = self.controls.get("down", pygame.K_s)
         if self.on_ground and pygame.key.get_pressed()[down_key]:
             self.crouching = True
+
+        if not self.on_ground:
+            if prev_on_ground:
+                self.coyote_frames = self.COYOTE_FRAMES
+            else:
+                self.coyote_frames = max(0, self.coyote_frames - 1)
+            self.jump_buffer_frames = max(0, self.jump_buffer_frames - 1)
+        else:
+            self.coyote_frames = 0
+            if self.jump_buffer_frames > 0 and self.jump_count < self.jump_max:
+                mult = self.double_jump_mult if self.jump_count > 0 else 1.0
+                self.speed_y = self.jump_force * mult
+                self.jump_count += 1
+                self.jump_buffer_frames = 0
+                self.drop_through = False
+
+        self._update_walk_animation()
 
         if (
             self.rect.right < -self.BLAST_MARGIN

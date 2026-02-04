@@ -1,3 +1,4 @@
+import math
 import pygame
 from .attacks_data import get_attack_hitboxes
 from .attack import (
@@ -6,9 +7,14 @@ from .attack import (
     check_hitbox_vs_circle,
     ActiveAttack,
     VictimStats,
+    HitResult,
 )
+from .knockback import KnockbackResult
 
 HURTBOX_RADIUS = 25
+COUNTER_DAMAGE = 6
+COUNTER_HITSTUN = 18
+COUNTER_LAUNCH_SPEED = 4
 
 
 class HitboxSprite(pygame.sprite.Sprite):
@@ -97,9 +103,29 @@ class HitboxSprite(pygame.sprite.Sprite):
                     stale_damage_mult=stale_mult,
                 )
                 if result is not None:
-                    victim.receive_hit(result)
-                    if hasattr(self.owner, "push_stale"):
-                        self.owner.push_stale(self.attack_id)
+                    counter_remaining = getattr(victim, "_counter_remaining", 0)
+                    if counter_remaining > 0:
+                        victim._counter_remaining = 0
+                        ax, ay = self.owner.rect.centerx, self.owner.rect.centery
+                        dx = ax - vx
+                        dy = ay - vy
+                        dist = math.sqrt(dx * dx + dy * dy) or 1.0
+                        vx_out = (dx / dist) * COUNTER_LAUNCH_SPEED
+                        vy_out = (dy / dist) * COUNTER_LAUNCH_SPEED
+                        dummy_kb = KnockbackResult(0, 0, 0, vx_out, vy_out)
+                        counter_result = HitResult(
+                            COUNTER_DAMAGE,
+                            dummy_kb,
+                            COUNTER_HITSTUN,
+                            True,
+                            vx_out,
+                            vy_out,
+                        )
+                        self.owner.receive_hit(counter_result)
+                    else:
+                        victim.receive_hit(result)
+                        if hasattr(self.owner, "push_stale"):
+                            self.owner.push_stale(self.attack_id)
                     self.hit_this_attack.add((id(victim), id(hb)))
                 break
 
