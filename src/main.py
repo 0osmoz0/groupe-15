@@ -74,9 +74,13 @@ except Exception:
     FONT_PERCENT = pygame.font.Font(None, 120)
 
 _nick_win_gif_path = os.path.join(_base_dir, "assets", "Nick", "win_nick", "1.gif")
+_judy_win_gif_path = os.path.join(_base_dir, "assets", "JUDY_HOPPS", "judy_win", "1 (1).gif")
 NICK_WIN_FRAMES = load_gif_frames(_nick_win_gif_path, scale_size=(_screen_w, _screen_h))
+JUDY_WIN_FRAMES = load_gif_frames(_judy_win_gif_path, scale_size=(_screen_w, _screen_h))
 nick_win_frame_index = 0
 nick_win_frame_timer_ms = 0
+judy_win_frame_index = 0
+judy_win_frame_timer_ms = 0
 game_state = "playing"
 
 player1 = Player(
@@ -194,6 +198,10 @@ while running:
         game_state = "nick_wins"
         nick_win_frame_index = 0
         nick_win_frame_timer_ms = 0
+    if game_state == "playing" and player2.lives <= 0 and player1.lives > 0 and getattr(player1, "character", "judy") == "judy":
+        game_state = "judy_wins"
+        judy_win_frame_index = 0
+        judy_win_frame_timer_ms = 0
 
     if game_state == "nick_wins":
         dt_ms = clock.get_time()
@@ -218,6 +226,34 @@ while running:
                 nick_win_frame_timer_ms -= duration_ms
                 nick_win_frame_index = (nick_win_frame_index + 1) % len(NICK_WIN_FRAMES)
                 surf, duration_ms = NICK_WIN_FRAMES[nick_win_frame_index]
+            screen.blit(surf, (0, 0))
+        pygame.display.flip()
+        clock.tick(60)
+        continue
+
+    if game_state == "judy_wins":
+        dt_ms = clock.get_time()
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    running = False
+                else:
+                    game_state = "playing"
+                    player1.respawn()
+                    player2.respawn()
+                    player1.lives = 3
+                    player2.lives = 3
+        if not running:
+            break
+        if JUDY_WIN_FRAMES:
+            judy_win_frame_timer_ms += dt_ms
+            surf, duration_ms = JUDY_WIN_FRAMES[judy_win_frame_index]
+            while judy_win_frame_timer_ms >= duration_ms and len(JUDY_WIN_FRAMES) > 1:
+                judy_win_frame_timer_ms -= duration_ms
+                judy_win_frame_index = (judy_win_frame_index + 1) % len(JUDY_WIN_FRAMES)
+                surf, duration_ms = JUDY_WIN_FRAMES[judy_win_frame_index]
             screen.blit(surf, (0, 0))
         pygame.display.flip()
         clock.tick(60)
