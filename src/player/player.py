@@ -77,14 +77,11 @@ class Player(pygame.sprite.Sprite):
     _distance_attack_frame_cache = {}
     _counter_frame_cache = {}
 
-    def __init__(self, start_pos, color, controls, screen_size, character: str = "judy", joystick=None, controller_type: str = "keyboard"):
+    def __init__(self, start_pos, color, controls, screen_size, character: str = "judy"):
         super().__init__()
         self.screen_width, self.screen_height = screen_size
         self.color = color
         self.character = character
-        self.joystick = joystick
-        # "keyboard" | "xbox" | "generic" — permet de savoir si P1 utilise une manette Xbox
-        self.controller_type = controller_type
 
         if character not in Player._walk_frames_cache:
             Player._walk_frames_cache[character] = _load_walk_frames(character)
@@ -156,15 +153,9 @@ class Player(pygame.sprite.Sprite):
         self.respawn_invuln = self.RESPAWN_INVULN_FRAMES
 
     def update_di(self):
-        if self.joystick is not None and self.joystick.get_id() >= 0:
-            ax0 = self.joystick.get_axis(0) if self.joystick.get_numaxes() > 0 else 0
-            ax1 = self.joystick.get_axis(1) if self.joystick.get_numaxes() > 1 else 0
-            dx = 1 if ax0 > 0.5 else (-1 if ax0 < -0.5 else 0)
-            dy = 1 if ax1 < -0.5 else (-1 if ax1 > 0.5 else 0)
-        else:
-            keys = pygame.key.get_pressed()
-            dx = 1 if keys[self.controls["right"]] else (-1 if keys[self.controls["left"]] else 0)
-            dy = 1 if keys[self.controls["jump"]] else (-1 if keys[self.controls.get("down", pygame.K_s)] else 0)
+        keys = pygame.key.get_pressed()
+        dx = 1 if keys[self.controls["right"]] else (-1 if keys[self.controls["left"]] else 0)
+        dy = 1 if keys[self.controls["jump"]] else (-1 if keys[self.controls.get("down", pygame.K_s)] else 0)
         if dx != 0 or dy != 0:
             self.di_angle_rad = math.atan2(dy, dx)
         else:
@@ -191,31 +182,19 @@ class Player(pygame.sprite.Sprite):
             return
         if self.hitstun > 0:
             return
+        keys = pygame.key.get_pressed()
         self.speed_x = 0
 
-        if self.joystick is not None and self.joystick.get_id() >= 0:
-            ax0 = self.joystick.get_axis(0) if self.joystick.get_numaxes() > 0 else 0
-            ax1 = self.joystick.get_axis(1) if self.joystick.get_numaxes() > 1 else 0
-            move = self.move_speed if self.on_ground else self.move_speed * self.air_move_mult
-            if ax0 < -0.5:
-                self.speed_x = -move
-                self.facing_right = False
-            if ax0 > 0.5:
-                self.speed_x = move
-                self.facing_right = True
-            self.drop_through = ax1 > 0.5
-            self._jump_held = self.joystick.get_button(0) if self.joystick.get_numbuttons() > 0 else False
-        else:
-            keys = pygame.key.get_pressed()
-            move = self.move_speed if self.on_ground else self.move_speed * self.air_move_mult
-            if keys[self.controls["left"]]:
-                self.speed_x = -move
-                self.facing_right = False
-            if keys[self.controls["right"]]:
-                self.speed_x = move
-                self.facing_right = True
-            self.drop_through = keys[self.controls.get("down", pygame.K_s)] and keys[self.controls["jump"]]
-            self._jump_held = keys[self.controls["jump"]]
+        move = self.move_speed if self.on_ground else self.move_speed * self.air_move_mult
+        if keys[self.controls["left"]]:
+            self.speed_x = -move
+            self.facing_right = False
+        if keys[self.controls["right"]]:
+            self.speed_x = move
+            self.facing_right = True
+
+        self.drop_through = keys[self.controls.get("down", pygame.K_s)] and keys[self.controls["jump"]]
+        self._jump_held = keys[self.controls["jump"]]
 
     def start_attack(self, attack_id: str, hitboxes_group, charge_mult: float = 1.0):
         hb = HitboxSprite(owner=self, attack_id=attack_id, charge_mult=charge_mult)
