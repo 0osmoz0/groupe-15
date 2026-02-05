@@ -4,6 +4,7 @@ from game.config import CAMERA_LERP, JOY_DEADZONE, JOY_BTN_JUMP, JOY_BTN_ATTACK,
 from game.hud import draw_player_ping, draw_portraits, draw_percent_hud
 from game.input_handling import get_player_input_state, start_attack_from_input
 from combat.projectile_sprite import ProjectileSprite
+from player.player import DISTANCE_ATTACK_COOLDOWN_FRAMES, DISTANCE_ATTACK_BURST_DELAY
 
 
 class PlayingScreen:
@@ -33,10 +34,6 @@ class PlayingScreen:
                     start_attack_from_input(ctx.player1, ctx.hitboxes, "jab", "ftilt", "utilt", "dtilt", "nair", "fair", "bair", "uair", "dair")
                 if event.key == ctx.player2.controls["attacking"] and ctx.player2.lives > 0:
                     start_attack_from_input(ctx.player2, ctx.hitboxes, "jab", "ftilt", "utilt", "dtilt", "nair", "fair", "bair", "uair", "dair")
-                if event.key == ctx.player1.controls.get("grab") and ctx.player1.lives > 0:
-                    ctx.player1.start_attack("grab", ctx.hitboxes)
-                if event.key == ctx.player2.controls.get("grab") and ctx.player2.lives > 0:
-                    ctx.player2.start_attack("grab", ctx.hitboxes)
                 if event.key == ctx.player1.controls.get("counter") and ctx.player1.lives > 0:
                     ctx.player1.start_counter()
                 if event.key == ctx.player2.controls.get("counter") and ctx.player2.lives > 0:
@@ -47,16 +44,24 @@ class PlayingScreen:
                     elif pu: ctx.player1.start_attack("up_special", ctx.hitboxes)
                     elif pd: ctx.player1.start_attack("down_special", ctx.hitboxes)
                     else:
-                        ProjectileSprite(ctx.player1, ctx.hitboxes)
-                        ctx.player1.start_distance_attack_animation()
+                        if getattr(ctx.player1, "_distance_attack_cooldown_remaining", 0) <= 0:
+                            ProjectileSprite(ctx.player1, ctx.hitboxes)
+                            ctx.player1.start_distance_attack_animation()
+                            ctx.player1._distance_attack_cooldown_remaining = DISTANCE_ATTACK_COOLDOWN_FRAMES
+                            ctx.player1._distance_burst_remaining = 2
+                            ctx.player1._distance_burst_timer = DISTANCE_ATTACK_BURST_DELAY
                 if event.key == ctx.player2.controls.get("special") and ctx.player2.lives > 0:
                     pl, pr, pu, pd = get_player_input_state(ctx.player2)
                     if pl or pr: ctx.player2.start_attack("side_special", ctx.hitboxes)
                     elif pu: ctx.player2.start_attack("up_special", ctx.hitboxes)
                     elif pd: ctx.player2.start_attack("down_special", ctx.hitboxes)
                     else:
-                        ProjectileSprite(ctx.player2, ctx.hitboxes)
-                        ctx.player2.start_distance_attack_animation()
+                        if getattr(ctx.player2, "_distance_attack_cooldown_remaining", 0) <= 0:
+                            ProjectileSprite(ctx.player2, ctx.hitboxes)
+                            ctx.player2.start_distance_attack_animation()
+                            ctx.player2._distance_attack_cooldown_remaining = DISTANCE_ATTACK_COOLDOWN_FRAMES
+                            ctx.player2._distance_burst_remaining = 2
+                            ctx.player2._distance_burst_timer = DISTANCE_ATTACK_BURST_DELAY
             if event.type == pygame.JOYAXISMOTION and DEBUG_JOYSTICK and abs(event.value) > JOY_DEADZONE:
                 print(f"[Manette] axe joy={event.joy} axis={event.axis} value={event.value:.2f}")
             if event.type == pygame.JOYBUTTONDOWN:
@@ -67,7 +72,6 @@ class PlayingScreen:
                     if btn == JOY_BTN_JUMP: ctx.player1.jump()
                     elif btn == JOY_BTN_ATTACK and ctx.player1.lives > 0:
                         start_attack_from_input(ctx.player1, ctx.hitboxes, "jab", "ftilt", "utilt", "dtilt", "nair", "fair", "bair", "uair", "dair")
-                    elif btn == JOY_BTN_GRAB and ctx.player1.lives > 0: ctx.player1.start_attack("grab", ctx.hitboxes)
                     elif btn == JOY_BTN_COUNTER and ctx.player1.lives > 0: ctx.player1.start_counter()
                     elif btn == JOY_BTN_SPECIAL and ctx.player1.lives > 0:
                         pl, pr, pu, pd = get_player_input_state(ctx.player1)
@@ -75,13 +79,16 @@ class PlayingScreen:
                         elif pu: ctx.player1.start_attack("up_special", ctx.hitboxes)
                         elif pd: ctx.player1.start_attack("down_special", ctx.hitboxes)
                         else:
-                            ProjectileSprite(ctx.player1, ctx.hitboxes)
-                            ctx.player1.start_distance_attack_animation()
+                            if getattr(ctx.player1, "_distance_attack_cooldown_remaining", 0) <= 0:
+                                ProjectileSprite(ctx.player1, ctx.hitboxes)
+                                ctx.player1.start_distance_attack_animation()
+                                ctx.player1._distance_attack_cooldown_remaining = DISTANCE_ATTACK_COOLDOWN_FRAMES
+                                ctx.player1._distance_burst_remaining = 2
+                                ctx.player1._distance_burst_timer = DISTANCE_ATTACK_BURST_DELAY
                 if joy_id == 1 and getattr(ctx.player2, "joy_id", None) == 1:
                     if btn == JOY_BTN_JUMP: ctx.player2.jump()
                     elif btn == JOY_BTN_ATTACK and ctx.player2.lives > 0:
                         start_attack_from_input(ctx.player2, ctx.hitboxes, "jab", "ftilt", "utilt", "dtilt", "nair", "fair", "bair", "uair", "dair")
-                    elif btn == JOY_BTN_GRAB and ctx.player2.lives > 0: ctx.player2.start_attack("grab", ctx.hitboxes)
                     elif btn == JOY_BTN_COUNTER and ctx.player2.lives > 0: ctx.player2.start_counter()
                     elif btn == JOY_BTN_SPECIAL and ctx.player2.lives > 0:
                         pl, pr, pu, pd = get_player_input_state(ctx.player2)
@@ -89,8 +96,19 @@ class PlayingScreen:
                         elif pu: ctx.player2.start_attack("up_special", ctx.hitboxes)
                         elif pd: ctx.player2.start_attack("down_special", ctx.hitboxes)
                         else:
-                            ProjectileSprite(ctx.player2, ctx.hitboxes)
-                            ctx.player2.start_distance_attack_animation()
+                            if getattr(ctx.player2, "_distance_attack_cooldown_remaining", 0) <= 0:
+                                ProjectileSprite(ctx.player2, ctx.hitboxes)
+                                ctx.player2.start_distance_attack_animation()
+                                ctx.player2._distance_attack_cooldown_remaining = DISTANCE_ATTACK_COOLDOWN_FRAMES
+                                ctx.player2._distance_burst_remaining = 2
+                                ctx.player2._distance_burst_timer = DISTANCE_ATTACK_BURST_DELAY
+
+        # Rafale : tirer les projectiles 2 et 3 après le délai
+        for player in (ctx.player1, ctx.player2):
+            if getattr(player, "_distance_burst_remaining", 0) > 0 and getattr(player, "_distance_burst_timer", 0) <= 0:
+                ProjectileSprite(player, ctx.hitboxes)
+                player._distance_burst_remaining -= 1
+                player._distance_burst_timer = DISTANCE_ATTACK_BURST_DELAY
 
         ctx.player1.handle_input()
         ctx.player2.handle_input()

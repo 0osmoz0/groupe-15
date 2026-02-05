@@ -48,6 +48,9 @@ class GameContext:
         self.countdown_step = 0
         self.countdown_timer_ms = 0
 
+        # Intro vidéo (Judy+Nick ou Nick+Judy)
+        self.intro_video_filename = None
+
         # Versus GIF
         self.versus_gif_frame_index = 0
         self.versus_gif_timer_ms = 0

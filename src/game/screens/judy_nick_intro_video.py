@@ -1,4 +1,4 @@
-"""Écran de lecture de la vidéo d'intro Judy P1 / Nick P2 (1.mp4)."""
+"""Écran de lecture des vidéos d'intro (1.mp4 Judy P1 / Nick P2, 1_2.mp4 Nick P1 / Judy P2)."""
 import os
 import pygame
 from game.config import JOY_BTN_JUMP, JOY_BTN_START
@@ -11,7 +11,7 @@ except ImportError:
 
 
 class JudyNickIntroVideoScreen:
-    """Joue 1.mp4 après la sélection des persos si P1=Judy et P2=Nick, puis passe à versus_gif."""
+    """Joue la vidéo d'intro selon P1/P2 (fichier dans ctx.intro_video_filename), puis enchaîne sur le jeu."""
     def __init__(self):
         self._cap = None
         self._video_path = None
@@ -19,11 +19,11 @@ class JudyNickIntroVideoScreen:
     def run(self, ctx):
         # Pas d'OpenCV ou première frame : ouvrir la vidéo ou passer à versus
         if self._cap is None:
-            if not _HAS_CV2:
+            if not _HAS_CV2 or not getattr(ctx, "intro_video_filename", None):
                 self._go_versus(ctx)
                 return
             self._video_path = os.path.join(
-                ctx.assets.base_dir, "assets", "BG_perso", "1.mp4"
+                ctx.assets.base_dir, "assets", "BG_perso", ctx.intro_video_filename
             )
             if not os.path.isfile(self._video_path):
                 self._go_versus(ctx)

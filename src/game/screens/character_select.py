@@ -62,7 +62,11 @@ class CharacterSelectScreen:
                 except Exception:
                     pass
             if ctx.p1_character_choice == "judy" and ctx.p2_character_choice == "nick":
-                ctx.game_state = "judy_nick_intro_video"
+                ctx.intro_video_filename = "1.mp4"
+                ctx.game_state = "intro_video"
+            elif ctx.p1_character_choice == "nick" and ctx.p2_character_choice == "judy":
+                ctx.intro_video_filename = "1_2.mp4"
+                ctx.game_state = "intro_video"
             else:
                 ctx.game_state = "versus_gif"
                 ctx.versus_gif_frame_index = 0

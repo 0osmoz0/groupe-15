@@ -75,6 +75,9 @@ def _load_counter_frame(character: str):
 
 
 DISTANCE_ATTACK_DURATION = 28
+DISTANCE_ATTACK_COOLDOWN_FRAMES = 90  # empêche le spam (1,5 s à 60 fps)
+DISTANCE_ATTACK_BURST_SIZE = 3  # rafale de 3
+DISTANCE_ATTACK_BURST_DELAY = 8  # frames entre chaque tir de la rafale
 COUNTER_DURATION = 40
 
 
@@ -116,6 +119,9 @@ class Player(pygame.sprite.Sprite):
         self._attack_frame_timer = 0
         self._attack_variant_toggle = 0
         self._distance_attack_remaining = 0
+        self._distance_attack_cooldown_remaining = 0
+        self._distance_burst_remaining = 0
+        self._distance_burst_timer = 0
         self._counter_remaining = 0
 
         self.image = self._walk_frames[0].copy()
@@ -369,6 +375,10 @@ class Player(pygame.sprite.Sprite):
     def update(self, others=[]):
         if self.lives <= 0:
             return
+        if self._distance_attack_cooldown_remaining > 0:
+            self._distance_attack_cooldown_remaining -= 1
+        if self._distance_burst_timer > 0:
+            self._distance_burst_timer -= 1
         self.update_di()
         self.prev_y = self.rect.y
         prev_on_ground = self.on_ground

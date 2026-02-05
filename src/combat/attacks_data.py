@@ -20,10 +20,11 @@ ANGLE_DIAG_DOWN = 315
 
 
 def _jab_hitboxes() -> list[Hitbox]:
+    # Grande hitbox devant le perso pour toucher l’adversaire (F = attaque)
     return [
         Hitbox(
-            frame_start=2, frame_end=10,
-            offset_x=38, offset_y=0, width=56, height=44,
+            frame_start=0, frame_end=14,
+            offset_x=58, offset_y=0, width=100, height=90,
             angle_deg=ANGLE_SAKURAI,
             base_knockback=20, knockback_scaling=0.0,
             damage=2.0,
@@ -32,8 +33,8 @@ def _jab_hitboxes() -> list[Hitbox]:
             hitstun_modifier=2,
         ),
         Hitbox(
-            frame_start=11, frame_end=20,
-            offset_x=38, offset_y=0, width=56, height=44,
+            frame_start=6, frame_end=22,
+            offset_x=62, offset_y=0, width=100, height=90,
             angle_deg=ANGLE_SAKURAI,
             base_knockback=25, knockback_scaling=0.0,
             damage=2.0,
@@ -42,8 +43,8 @@ def _jab_hitboxes() -> list[Hitbox]:
             hitstun_modifier=2,
         ),
         Hitbox(
-            frame_start=20, frame_end=30,
-            offset_x=42, offset_y=0, width=60, height=48,
+            frame_start=12, frame_end=32,
+            offset_x=66, offset_y=0, width=105, height=95,
             angle_deg=ANGLE_SAKURAI,
             base_knockback=30, knockback_scaling=0.8,
             damage=4.0,
@@ -246,10 +247,11 @@ def _down_special_hitbox() -> list[Hitbox]:
 
 # --- Grab et throws ---
 def _grab_hitbox() -> list[Hitbox]:
+    # Grande hitbox devant pour que le grab touche (G = grab)
     return [
         Hitbox(
-            frame_start=4, frame_end=12,
-            offset_x=30, offset_y=0, width=35, height=45,
+            frame_start=0, frame_end=22,
+            offset_x=55, offset_y=0, width=95, height=100,
             angle_deg=ANGLE_HORIZONTAL,
             base_knockback=0, knockback_scaling=0,
             damage=3.0,

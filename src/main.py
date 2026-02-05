@@ -40,7 +40,7 @@ except Exception:
 time.sleep(1.2)
 
 fullscreen_mode = True
-screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.FULLSCREEN if fullscreen_mode else 0)
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
 clock = pygame.time.Clock()
 screen_w, screen_h = screen.get_size()
 world_w, world_h = screen_w * 2, screen_h * 2
@@ -271,7 +271,7 @@ while ctx.running:
     if ctx.game_state == "character_select":
         character_select_screen.run(ctx)
         continue
-    if ctx.game_state == "judy_nick_intro_video":
+    if ctx.game_state == "intro_video":
         judy_nick_intro_video_screen.run(ctx)
         continue
     if ctx.game_state == "versus_gif":
