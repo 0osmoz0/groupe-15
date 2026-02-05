@@ -118,6 +118,7 @@ while ctx.running:
     if ctx.game_state == "main_menu":
         if a.menu_music_loaded and not ctx.menu_music_playing:
             try:
+                pygame.mixer.music.set_volume(0.2)
                 pygame.mixer.music.play(-1)
                 ctx.menu_music_playing = True
             except Exception:
@@ -148,12 +149,6 @@ while ctx.running:
                 ctx.running = False
                 break
             if selected == "VERSUS":
-                if ctx.menu_music_playing:
-                    try:
-                        pygame.mixer.music.stop()
-                        ctx.menu_music_playing = False
-                    except Exception:
-                        pass
                 ctx.game_state = "map_select"
                 ctx.map_select_cursor = 0
                 ctx.char_select_phase = "p1"

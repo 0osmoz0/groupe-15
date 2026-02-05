@@ -55,6 +55,12 @@ class CharacterSelectScreen:
             ctx.assets.background = ctx.assets.map_surfaces[ctx.selected_map_index].copy()
             ctx.player1.set_character(ctx.p1_character_choice)
             ctx.player2.set_character(ctx.p2_character_choice)
+            if ctx.menu_music_playing:
+                try:
+                    pygame.mixer.music.stop()
+                    ctx.menu_music_playing = False
+                except Exception:
+                    pass
             ctx.game_state = "versus_gif"
             ctx.versus_gif_frame_index = 0
             ctx.versus_gif_timer_ms = 0
@@ -62,7 +68,9 @@ class CharacterSelectScreen:
             ctx.wait_after_gif_timer_ms = 0
 
     def _draw(self, ctx):
-        if ctx.assets.menu_background:
+        if getattr(ctx.assets, "character_select_background", None):
+            ctx.screen.blit(ctx.assets.character_select_background, (0, 0))
+        elif ctx.assets.menu_background:
             ctx.screen.blit(ctx.assets.menu_background, (0, 0))
         else:
             ctx.screen.fill((30, 30, 50))
@@ -79,7 +87,7 @@ class CharacterSelectScreen:
         slot_w, slot_h = 280, 80
         for i, label in enumerate(ctx.character_labels):
             taken = ctx.char_select_phase == "p2" and ctx.p1_character_choice is not None and ctx.characters[i] == ctx.p1_character_choice
-            x_center = ctx.screen_w // 2 + (i * 2 - 1) * 220
+            x_center = ctx.screen_w // 2 + (i * 2 - 1) * 320
             slot_rect = pygame.Rect(x_center - slot_w // 2, opt_y - slot_h // 2, slot_w, slot_h)
             if taken:
                 pygame.draw.rect(ctx.screen, (180, 80, 80), slot_rect, 3)

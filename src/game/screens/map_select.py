@@ -40,7 +40,9 @@ class MapSelectScreen:
         ctx.clock.tick(60)
 
     def _draw(self, ctx):
-        if ctx.assets.menu_background:
+        if getattr(ctx.assets, "map_select_background", None):
+            ctx.screen.blit(ctx.assets.map_select_background, (0, 0))
+        elif ctx.assets.menu_background:
             ctx.screen.blit(ctx.assets.menu_background, (0, 0))
         else:
             ctx.screen.fill((30, 30, 50))

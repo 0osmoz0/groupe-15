@@ -84,6 +84,11 @@ class GameAssets:
             self.map_surfaces = [pygame.Surface((self.world_w, self.world_h))]
             self.map_surfaces[0].fill((40, 40, 60))
         self.background = self.map_surfaces[0].copy()
+        try:
+            bg_map = pygame.image.load(os.path.join(bg_dir, "BG_map.png")).convert()
+            self.map_select_background = pygame.transform.smoothscale(bg_map, (self.screen_w, self.screen_h))
+        except Exception:
+            self.map_select_background = None
 
     def _load_gifs(self):
         bp = os.path.join(self.base_dir, "assets", "BG_perso")
@@ -99,6 +104,11 @@ class GameAssets:
             self.title_screen = pygame.transform.smoothscale(title_img, (self.screen_w, self.screen_h))
         except Exception:
             self.title_screen = None
+        try:
+            char_bg = pygame.image.load(os.path.join(bp, "1_7.png")).convert()
+            self.character_select_background = pygame.transform.smoothscale(char_bg, (self.screen_w, self.screen_h))
+        except Exception:
+            self.character_select_background = None
 
     def _load_menu(self):
         menu_dir = os.path.join(self.base_dir, "assets", "menu")
