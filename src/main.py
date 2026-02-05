@@ -17,6 +17,7 @@ from game.input_handling import init_joysticks, tick_joystick_rescan
 from game.screens import (
     MapSelectScreen,
     CharacterSelectScreen,
+    JudyNickIntroVideoScreen,
     CountdownScreen,
     VersusGifScreen,
     WaitP1EnterScreen,
@@ -101,6 +102,7 @@ controls_menu = ControlsMenu(screen_w, screen_h, player1.controls, player2.contr
 # --- Écrans de jeu (POO) ---
 map_select_screen = MapSelectScreen()
 character_select_screen = CharacterSelectScreen()
+judy_nick_intro_video_screen = JudyNickIntroVideoScreen()
 countdown_screen = CountdownScreen()
 versus_gif_screen = VersusGifScreen()
 wait_p1_enter_screen = WaitP1EnterScreen()
@@ -268,6 +270,9 @@ while ctx.running:
         continue
     if ctx.game_state == "character_select":
         character_select_screen.run(ctx)
+        continue
+    if ctx.game_state == "judy_nick_intro_video":
+        judy_nick_intro_video_screen.run(ctx)
         continue
     if ctx.game_state == "versus_gif":
         versus_gif_screen.run(ctx)

@@ -61,11 +61,14 @@ class CharacterSelectScreen:
                     ctx.menu_music_playing = False
                 except Exception:
                     pass
-            ctx.game_state = "versus_gif"
-            ctx.versus_gif_frame_index = 0
-            ctx.versus_gif_timer_ms = 0
-            ctx.versus_gif_phase = "playing"
-            ctx.wait_after_gif_timer_ms = 0
+            if ctx.p1_character_choice == "judy" and ctx.p2_character_choice == "nick":
+                ctx.game_state = "judy_nick_intro_video"
+            else:
+                ctx.game_state = "versus_gif"
+                ctx.versus_gif_frame_index = 0
+                ctx.versus_gif_timer_ms = 0
+                ctx.versus_gif_phase = "playing"
+                ctx.wait_after_gif_timer_ms = 0
 
     def _draw(self, ctx):
         if getattr(ctx.assets, "character_select_background", None):
