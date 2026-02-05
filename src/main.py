@@ -1,4 +1,5 @@
 import os
+import time
 import pygame
 from player.player import Player
 from smash_platform.game_platform import Platform
@@ -51,9 +52,11 @@ def load_gif_frames(path, scale_size=None):
 pygame.init()
 pygame.font.init()
 pygame.joystick.init()
+# Délai pour que macOS/Bluetooth expose la manette à SDL avant le premier scan
+time.sleep(1.2)
 
 WIDTH, HEIGHT = 1920, 1080
-screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.FULLSCREEN)
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
 clock = pygame.time.Clock()
 
 _screen_w, _screen_h = screen.get_size()
@@ -64,6 +67,9 @@ _bg_path = os.path.join(_base_dir, "assets", "background map", "BG.png")
 _background_raw = pygame.image.load(_bg_path).convert()
 BACKGROUND = pygame.transform.smoothscale(_background_raw, (WORLD_W, WORLD_H))
 world_surface = pygame.Surface((WORLD_W, WORLD_H))
+
+# Mettre à True pour afficher en console les manettes détectées et les boutons/axes reçus
+DEBUG_JOYSTICK = True
 
 CAMERA_LERP = 0.08
 camera_x = WORLD_W // 2 - _screen_w // 2
@@ -219,8 +225,13 @@ platforms = pygame.sprite.Group()
 hitboxes = pygame.sprite.Group()
 
 # Manettes : P1 = joystick 0, P2 = joystick 1 (PS4 / Xbox)
-def _init_joysticks():
+_joystick_rescan_frames = 0  # pour re-scan périodique quand 0 manette
+_joystick_ever_seen = False  # si True, ne plus faire quit/init (évite de perdre la manette)
+_last_joystick_count = -1  # pour n'afficher qu'au changement
+
+def _init_joysticks(force_log=False):
     """Initialise les manettes et assigne joy_id aux joueurs."""
+    global _last_joystick_count
     n = pygame.joystick.get_count()
     for i in range(n):
         try:
@@ -228,11 +239,24 @@ def _init_joysticks():
             j.init()
         except Exception:
             pass
-    if n >= 1 and getattr(player1, "joy_id", None) is None:
-        player1.joy_id = 0
-    if n >= 2 and getattr(player2, "joy_id", None) is None:
-        player2.joy_id = 1
+    # Toujours synchroniser joy_id avec le nombre de manettes (permet re-scan)
+    player1.joy_id = 0 if n >= 1 else None
+    player2.joy_id = 1 if n >= 2 else None
+    # N'afficher qu'au premier scan ou quand le nombre change (évite le spam "0")
+    do_log = DEBUG_JOYSTICK and (force_log or n != _last_joystick_count)
+    if do_log:
+        _last_joystick_count = n
+        _init_joysticks._logged = True
+        print(f"[Manettes] Détectées: {n}")
+        for i in range(n):
+            try:
+                j = pygame.joystick.Joystick(i)
+                print(f"  Joystick {i}: {j.get_name()!r} (boutons={j.get_numbuttons()}, axes={j.get_numaxes()})")
+            except Exception as e:
+                print(f"  Joystick {i}: erreur {e}")
 
+
+# Premier scan (pas de quit/init pour ne pas perdre la manette macOS/Bluetooth)
 _init_joysticks()
 JOY_DEADZONE = 0.35
 JOY_BTN_JUMP = 0      # X (PS4) / A (Xbox)
@@ -240,6 +264,7 @@ JOY_BTN_SPECIAL = 1   # Cercle / B
 JOY_BTN_ATTACK = 2    # Carré / X
 JOY_BTN_GRAB = 3      # Triangle / Y
 JOY_BTN_COUNTER = 4   # L1 / LB
+JOY_BTN_START = 9     # Options (PS4) / Menu (Xbox) — confirmer / démarrer
 
 
 def _get_player_input_state(player):
@@ -402,9 +427,30 @@ platforms.add(
 
 running = True
 while running:
+    # Re-scan périodique seulement si on n'a jamais vu de manette (évite de la perdre après quit/init)
+    n_joy = pygame.joystick.get_count()
+    if n_joy > 0:
+        _joystick_ever_seen = True
+        _joystick_rescan_frames = 0
+    elif not _joystick_ever_seen:
+        _joystick_rescan_frames += 1
+        if _joystick_rescan_frames >= 60:  # toutes les ~1 s
+            _joystick_rescan_frames = 0
+            pygame.joystick.quit()
+            pygame.joystick.init()
+            try:
+                pygame.event.clear()
+            except Exception:
+                pass
+            _init_joysticks._logged = False
+            _init_joysticks(force_log=True)
     _init_joysticks()
     if game_state == "title_screen":
-        for event in pygame.event.get():
+        try:
+            events = pygame.event.get()
+        except (KeyError, SystemError):
+            events = []
+        for event in events:
             if event.type == pygame.QUIT:
                 running = False
             if event.type == pygame.KEYDOWN and event.key == pygame.K_a:
@@ -419,6 +465,20 @@ while running:
                 enter_gif_timer_ms = 0
                 enter_gif_phase = "playing"
                 wait_after_enter_gif_timer_ms = 0
+            # Manette : X (0) = A, Options (9) = Entrée (ne pas lire event.joy si 0 manette)
+            if event.type == pygame.JOYBUTTONDOWN and pygame.joystick.get_count() > 0 and event.joy == 0:
+                if event.button == JOY_BTN_JUMP:
+                    game_state = "versus_gif"
+                    versus_gif_frame_index = 0
+                    versus_gif_timer_ms = 0
+                    versus_gif_phase = "playing"
+                    wait_after_gif_timer_ms = 0
+                elif event.button == JOY_BTN_START:
+                    game_state = "versus_gif_enter"
+                    enter_gif_frame_index = 0
+                    enter_gif_timer_ms = 0
+                    enter_gif_phase = "playing"
+                    wait_after_enter_gif_timer_ms = 0
         if not running:
             break
         if game_state == "title_screen":
@@ -434,6 +494,12 @@ while running:
             if event.type == pygame.QUIT:
                 running = False
             if event.type == pygame.KEYDOWN and event.key == pygame.K_a:
+                game_state = "versus_gif_enter_then_a"
+                enter_then_a_frame_index = 0
+                enter_then_a_timer_ms = 0
+                enter_then_a_phase = "playing"
+                wait_after_enter_then_a_timer_ms = 0
+            if event.type == pygame.JOYBUTTONDOWN and event.joy == 0 and event.button in (JOY_BTN_JUMP, JOY_BTN_START):
                 game_state = "versus_gif_enter_then_a"
                 enter_then_a_frame_index = 0
                 enter_then_a_timer_ms = 0
@@ -521,6 +587,8 @@ while running:
                 running = False
             if event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
                 game_state = "versus_gif_p1_confirm"
+            if event.type == pygame.JOYBUTTONDOWN and event.joy == 0 and event.button in (JOY_BTN_JUMP, JOY_BTN_START):
+                game_state = "versus_gif_p1_confirm"
                 p1_confirm_frame_index = 0
                 p1_confirm_timer_ms = 0
                 p1_confirm_phase = "playing"
@@ -559,6 +627,12 @@ while running:
             if event.type == pygame.QUIT:
                 running = False
             if event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
+                game_state = "versus_gif_p1_confirm"
+                p1_confirm_frame_index = 0
+                p1_confirm_timer_ms = 0
+                p1_confirm_phase = "playing"
+                wait_after_p1_confirm_timer_ms = 0
+            if event.type == pygame.JOYBUTTONDOWN and event.joy == 0 and event.button in (JOY_BTN_JUMP, JOY_BTN_START):
                 game_state = "versus_gif_p1_confirm"
                 p1_confirm_frame_index = 0
                 p1_confirm_timer_ms = 0
@@ -665,6 +739,15 @@ while running:
                     player2.respawn()
                     player1.lives = 3
                     player2.lives = 3
+            if event.type == pygame.JOYBUTTONDOWN:
+                if event.button == JOY_BTN_START:
+                    running = False
+                else:
+                    game_state = "playing"
+                    player1.respawn()
+                    player2.respawn()
+                    player1.lives = 3
+                    player2.lives = 3
         if not running:
             break
         if NICK_WIN_FRAMES:
@@ -686,6 +769,15 @@ while running:
                 running = False
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
+                    running = False
+                else:
+                    game_state = "playing"
+                    player1.respawn()
+                    player2.respawn()
+                    player1.lives = 3
+                    player2.lives = 3
+            if event.type == pygame.JOYBUTTONDOWN:
+                if event.button == JOY_BTN_START:
                     running = False
                 else:
                     game_state = "playing"
@@ -756,7 +848,11 @@ while running:
                     ProjectileSprite(player2, hitboxes)
                     player2.start_distance_attack_animation()
 
+        if event.type == pygame.JOYAXISMOTION and DEBUG_JOYSTICK and abs(event.value) > JOY_DEADZONE:
+            print(f"[Manette] axe joy={event.joy} axis={event.axis} value={event.value:.2f}")
         if event.type == pygame.JOYBUTTONDOWN:
+            if DEBUG_JOYSTICK:
+                print(f"[Manette] bouton joy_id={event.joy} button={event.button}")
             joy_id = event.joy
             btn = event.button
             if joy_id == 0 and getattr(player1, "joy_id", None) == 0:
