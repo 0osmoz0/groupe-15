@@ -219,8 +219,21 @@ platforms = pygame.sprite.Group()
 hitboxes = pygame.sprite.Group()
 
 # Manettes : P1 = joystick 0, P2 = joystick 1 (PS4 / Xbox)
-player1.joy_id = 0 if pygame.joystick.get_count() >= 1 else None
-player2.joy_id = 1 if pygame.joystick.get_count() >= 2 else None
+def _init_joysticks():
+    """Initialise les manettes et assigne joy_id aux joueurs."""
+    n = pygame.joystick.get_count()
+    for i in range(n):
+        try:
+            j = pygame.joystick.Joystick(i)
+            j.init()
+        except Exception:
+            pass
+    if n >= 1 and getattr(player1, "joy_id", None) is None:
+        player1.joy_id = 0
+    if n >= 2 and getattr(player2, "joy_id", None) is None:
+        player2.joy_id = 1
+
+_init_joysticks()
 JOY_DEADZONE = 0.35
 JOY_BTN_JUMP = 0      # X (PS4) / A (Xbox)
 JOY_BTN_SPECIAL = 1   # Cercle / B
@@ -235,8 +248,8 @@ def _get_player_input_state(player):
     if joy_id is not None and joy_id < pygame.joystick.get_count():
         try:
             joy = pygame.joystick.Joystick(joy_id)
-            ax0 = joy.get_axis(0)
-            ax1 = joy.get_axis(1)
+            ax0 = joy.get_axis(0) if joy.get_numaxes() > 0 else 0.0
+            ax1 = joy.get_axis(1) if joy.get_numaxes() > 1 else 0.0
             left = ax0 < -JOY_DEADZONE
             right = ax0 > JOY_DEADZONE
             up = ax1 < -JOY_DEADZONE
@@ -389,6 +402,7 @@ platforms.add(
 
 running = True
 while running:
+    _init_joysticks()
     if game_state == "title_screen":
         for event in pygame.event.get():
             if event.type == pygame.QUIT:

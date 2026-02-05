@@ -173,7 +173,8 @@ class Player(pygame.sprite.Sprite):
         try:
             joy = pygame.joystick.Joystick(self.joy_id)
             dead = 0.35
-            ax0, ax1 = joy.get_axis(0), joy.get_axis(1)
+            ax0 = joy.get_axis(0) if joy.get_numaxes() > 0 else 0.0
+            ax1 = joy.get_axis(1) if joy.get_numaxes() > 1 else 0.0
             left = ax0 < -dead
             right = ax0 > dead
             up = ax1 < -dead
