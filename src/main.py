@@ -50,6 +50,7 @@ def load_gif_frames(path, scale_size=None):
 
 pygame.init()
 pygame.font.init()
+pygame.joystick.init()
 
 WIDTH, HEIGHT = 1920, 1080
 screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.FULLSCREEN)
@@ -217,12 +218,53 @@ players = pygame.sprite.Group(player1, player2)
 platforms = pygame.sprite.Group()
 hitboxes = pygame.sprite.Group()
 
+# Manettes : P1 = joystick 0, P2 = joystick 1 (PS4 / Xbox)
+player1.joy_id = 0 if pygame.joystick.get_count() >= 1 else None
+player2.joy_id = 1 if pygame.joystick.get_count() >= 2 else None
+JOY_DEADZONE = 0.35
+JOY_BTN_JUMP = 0      # X (PS4) / A (Xbox)
+JOY_BTN_SPECIAL = 1   # Cercle / B
+JOY_BTN_ATTACK = 2    # Carré / X
+JOY_BTN_GRAB = 3      # Triangle / Y
+JOY_BTN_COUNTER = 4   # L1 / LB
 
-def _start_attack_from_input(player, keys, hitboxes, jab, ftilt, utilt, dtilt, nair, fair, bair, uair, dair):
-    left = keys[player.controls["left"]]
-    right = keys[player.controls["right"]]
-    up = keys[player.controls["jump"]]
-    down = keys[player.controls["down"]]
+
+def _get_player_input_state(player):
+    """Retourne (left, right, up, down) depuis clavier ou manette."""
+    joy_id = getattr(player, "joy_id", None)
+    if joy_id is not None and joy_id < pygame.joystick.get_count():
+        try:
+            joy = pygame.joystick.Joystick(joy_id)
+            ax0 = joy.get_axis(0)
+            ax1 = joy.get_axis(1)
+            left = ax0 < -JOY_DEADZONE
+            right = ax0 > JOY_DEADZONE
+            up = ax1 < -JOY_DEADZONE
+            down = ax1 > JOY_DEADZONE
+            if joy.get_numhats() > 0:
+                hx, hy = joy.get_hat(0)
+                if hx < 0:
+                    left = True
+                if hx > 0:
+                    right = True
+                if hy > 0:
+                    up = True
+                if hy < 0:
+                    down = True
+            return (left, right, up, down)
+        except Exception:
+            pass
+    keys = pygame.key.get_pressed()
+    return (
+        keys[player.controls["left"]],
+        keys[player.controls["right"]],
+        keys[player.controls["jump"]],
+        keys[player.controls.get("down", pygame.K_s)],
+    )
+
+
+def _start_attack_from_input(player, hitboxes, jab, ftilt, utilt, dtilt, nair, fair, bair, uair, dair):
+    left, right, up, down = _get_player_input_state(player)
     on_ground = getattr(player, "on_ground", True)
     facing_right = getattr(player, "facing_right", True)
     if on_ground:
@@ -256,6 +298,7 @@ def draw_player_ping(surface, player, ping_surface):
 
 
 def draw_percent_hud(surface, player, x: int, y: int, align_left: bool = True):
+
     percent = int(player.stats.percent)
     lives = max(0, player.lives)
     character = getattr(player, "character", None)
@@ -662,9 +705,9 @@ while running:
                 player2.jump()
 
             if event.key == player1.controls["attacking"] and player1.lives > 0:
-                _start_attack_from_input(player1, keys, hitboxes, "jab", "ftilt", "utilt", "dtilt", "nair", "fair", "bair", "uair", "dair")
+                _start_attack_from_input(player1, hitboxes, "jab", "ftilt", "utilt", "dtilt", "nair", "fair", "bair", "uair", "dair")
             if event.key == player2.controls["attacking"] and player2.lives > 0:
-                _start_attack_from_input(player2, keys, hitboxes, "jab", "ftilt", "utilt", "dtilt", "nair", "fair", "bair", "uair", "dair")
+                _start_attack_from_input(player2, hitboxes, "jab", "ftilt", "utilt", "dtilt", "nair", "fair", "bair", "uair", "dair")
 
             if event.key == player1.controls.get("grab") and player1.lives > 0:
                 player1.start_attack("grab", hitboxes)
@@ -677,25 +720,71 @@ while running:
                 player2.start_counter()
 
             if event.key == player1.controls.get("special") and player1.lives > 0:
-                if keys[player1.controls["left"]] or keys[player1.controls["right"]]:
+                pl, pr, pu, pd = _get_player_input_state(player1)
+                if pl or pr:
                     player1.start_attack("side_special", hitboxes)
-                elif keys[player1.controls["jump"]]:
+                elif pu:
                     player1.start_attack("up_special", hitboxes)
-                elif keys[player1.controls["down"]]:
+                elif pd:
                     player1.start_attack("down_special", hitboxes)
                 else:
                     ProjectileSprite(player1, hitboxes)
                     player1.start_distance_attack_animation()
             if event.key == player2.controls.get("special") and player2.lives > 0:
-                if keys[player2.controls["left"]] or keys[player2.controls["right"]]:
+                pl, pr, pu, pd = _get_player_input_state(player2)
+                if pl or pr:
                     player2.start_attack("side_special", hitboxes)
-                elif keys[player2.controls["jump"]]:
+                elif pu:
                     player2.start_attack("up_special", hitboxes)
-                elif keys[player2.controls["down"]]:
+                elif pd:
                     player2.start_attack("down_special", hitboxes)
                 else:
                     ProjectileSprite(player2, hitboxes)
                     player2.start_distance_attack_animation()
+
+        if event.type == pygame.JOYBUTTONDOWN:
+            joy_id = event.joy
+            btn = event.button
+            if joy_id == 0 and getattr(player1, "joy_id", None) == 0:
+                if btn == JOY_BTN_JUMP:
+                    player1.jump()
+                elif btn == JOY_BTN_ATTACK and player1.lives > 0:
+                    _start_attack_from_input(player1, hitboxes, "jab", "ftilt", "utilt", "dtilt", "nair", "fair", "bair", "uair", "dair")
+                elif btn == JOY_BTN_GRAB and player1.lives > 0:
+                    player1.start_attack("grab", hitboxes)
+                elif btn == JOY_BTN_COUNTER and player1.lives > 0:
+                    player1.start_counter()
+                elif btn == JOY_BTN_SPECIAL and player1.lives > 0:
+                    pl, pr, pu, pd = _get_player_input_state(player1)
+                    if pl or pr:
+                        player1.start_attack("side_special", hitboxes)
+                    elif pu:
+                        player1.start_attack("up_special", hitboxes)
+                    elif pd:
+                        player1.start_attack("down_special", hitboxes)
+                    else:
+                        ProjectileSprite(player1, hitboxes)
+                        player1.start_distance_attack_animation()
+            if joy_id == 1 and getattr(player2, "joy_id", None) == 1:
+                if btn == JOY_BTN_JUMP:
+                    player2.jump()
+                elif btn == JOY_BTN_ATTACK and player2.lives > 0:
+                    _start_attack_from_input(player2, hitboxes, "jab", "ftilt", "utilt", "dtilt", "nair", "fair", "bair", "uair", "dair")
+                elif btn == JOY_BTN_GRAB and player2.lives > 0:
+                    player2.start_attack("grab", hitboxes)
+                elif btn == JOY_BTN_COUNTER and player2.lives > 0:
+                    player2.start_counter()
+                elif btn == JOY_BTN_SPECIAL and player2.lives > 0:
+                    pl, pr, pu, pd = _get_player_input_state(player2)
+                    if pl or pr:
+                        player2.start_attack("side_special", hitboxes)
+                    elif pu:
+                        player2.start_attack("up_special", hitboxes)
+                    elif pd:
+                        player2.start_attack("down_special", hitboxes)
+                    else:
+                        ProjectileSprite(player2, hitboxes)
+                        player2.start_distance_attack_animation()
 
     player1.handle_input()
     player2.handle_input()

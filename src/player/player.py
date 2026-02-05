@@ -125,6 +125,7 @@ class Player(pygame.sprite.Sprite):
         self.drop_through = False
 
         self.controls = controls
+        self.joy_id = None
         self.speed_x = 0
         self.speed_y = 0
         self.gravity = 0.42
@@ -165,10 +166,43 @@ class Player(pygame.sprite.Sprite):
         self.state = "idle"
         self.respawn_invuln = self.RESPAWN_INVULN_FRAMES
 
+    def _get_joy_input(self):
+        """(left, right, up, down, jump_held) depuis la manette si connectée."""
+        if self.joy_id is None or self.joy_id >= pygame.joystick.get_count():
+            return None
+        try:
+            joy = pygame.joystick.Joystick(self.joy_id)
+            dead = 0.35
+            ax0, ax1 = joy.get_axis(0), joy.get_axis(1)
+            left = ax0 < -dead
+            right = ax0 > dead
+            up = ax1 < -dead
+            down = ax1 > dead
+            if joy.get_numhats() > 0:
+                hx, hy = joy.get_hat(0)
+                if hx < 0:
+                    left = True
+                if hx > 0:
+                    right = True
+                if hy > 0:
+                    up = True
+                if hy < 0:
+                    down = True
+            jump_held = joy.get_button(0) if joy.get_numbuttons() > 0 else False
+            return (left, right, up, down, jump_held)
+        except Exception:
+            return None
+
     def update_di(self):
-        keys = pygame.key.get_pressed()
-        dx = 1 if keys[self.controls["right"]] else (-1 if keys[self.controls["left"]] else 0)
-        dy = 1 if keys[self.controls["jump"]] else (-1 if keys[self.controls.get("down", pygame.K_s)] else 0)
+        joy_in = self._get_joy_input()
+        if joy_in is not None:
+            left, right, up, down, _ = joy_in
+            dx = 1 if right else (-1 if left else 0)
+            dy = 1 if up else (-1 if down else 0)
+        else:
+            keys = pygame.key.get_pressed()
+            dx = 1 if keys[self.controls["right"]] else (-1 if keys[self.controls["left"]] else 0)
+            dy = 1 if keys[self.controls["jump"]] else (-1 if keys[self.controls.get("down", pygame.K_s)] else 0)
         if dx != 0 or dy != 0:
             self.di_angle_rad = math.atan2(dy, dx)
         else:
@@ -195,19 +229,30 @@ class Player(pygame.sprite.Sprite):
             return
         if self.hitstun > 0:
             return
-        keys = pygame.key.get_pressed()
         self.speed_x = 0
-
         move = self.move_speed if self.on_ground else self.move_speed * self.air_move_mult
-        if keys[self.controls["left"]]:
-            self.speed_x = -move
-            self.facing_right = False
-        if keys[self.controls["right"]]:
-            self.speed_x = move
-            self.facing_right = True
 
-        self.drop_through = keys[self.controls.get("down", pygame.K_s)] and keys[self.controls["jump"]]
-        self._jump_held = keys[self.controls["jump"]]
+        joy_in = self._get_joy_input()
+        if joy_in is not None:
+            left, right, up, down, jump_held = joy_in
+            if left:
+                self.speed_x = -move
+                self.facing_right = False
+            if right:
+                self.speed_x = move
+                self.facing_right = True
+            self.drop_through = down and jump_held
+            self._jump_held = jump_held
+        else:
+            keys = pygame.key.get_pressed()
+            if keys[self.controls["left"]]:
+                self.speed_x = -move
+                self.facing_right = False
+            if keys[self.controls["right"]]:
+                self.speed_x = move
+                self.facing_right = True
+            self.drop_through = keys[self.controls.get("down", pygame.K_s)] and keys[self.controls["jump"]]
+            self._jump_held = keys[self.controls["jump"]]
 
     def start_attack(self, attack_id: str, hitboxes_group, charge_mult: float = 1.0):
         hb = HitboxSprite(owner=self, attack_id=attack_id, charge_mult=charge_mult)
@@ -378,9 +423,13 @@ class Player(pygame.sprite.Sprite):
                 elif self.speed_y < 0:
                     self.rect.top = other.rect.bottom
                     self.speed_y = 0
-        down_key = self.controls.get("down", pygame.K_s)
-        if self.on_ground and pygame.key.get_pressed()[down_key]:
-            self.crouching = True
+        if self.on_ground:
+            joy_in = self._get_joy_input()
+            down_pressed = (joy_in[3] if joy_in is not None else False) or (
+                pygame.key.get_pressed()[self.controls.get("down", pygame.K_s)]
+            )
+            if down_pressed:
+                self.crouching = True
 
         if not self.on_ground:
             if prev_on_ground:
