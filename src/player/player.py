@@ -166,6 +166,27 @@ class Player(pygame.sprite.Sprite):
         self.state = "idle"
         self.respawn_invuln = self.RESPAWN_INVULN_FRAMES
 
+    def set_character(self, new_character: str):
+        """Change le personnage (judy / nick) et met à jour sprites et image."""
+        if new_character not in ("judy", "nick"):
+            return
+        self.character = new_character
+        if self.character not in Player._walk_frames_cache:
+            Player._walk_frames_cache[self.character] = _load_walk_frames(self.character)
+        if self.character not in Player._attack_frames_cache:
+            Player._attack_frames_cache[self.character] = _load_attack_frames(self.character)
+        if self.character not in Player._distance_attack_frame_cache:
+            Player._distance_attack_frame_cache[self.character] = _load_distance_attack_frame(self.character)
+        if self.character not in Player._counter_frame_cache:
+            Player._counter_frame_cache[self.character] = _load_counter_frame(self.character)
+        self._walk_frames = Player._walk_frames_cache[self.character]
+        self._attack_frames = Player._attack_frames_cache[self.character]
+        self._distance_attack_frame = Player._distance_attack_frame_cache[self.character]
+        self._counter_frame = Player._counter_frame_cache[self.character]
+        self.image = self._walk_frames[0].copy()
+        cx, cy = self.rect.center
+        self.rect = self.image.get_rect(center=(cx, cy))
+
     def _get_joy_input(self):
         """(left, right, up, down, jump_held) depuis la manette si connectée."""
         if self.joy_id is None or self.joy_id >= pygame.joystick.get_count():

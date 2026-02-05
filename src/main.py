@@ -1,946 +1,305 @@
+"""
+Point d'entrée du jeu. Initialise pygame, crée le contexte et les écrans, puis lance la boucle principale.
+La logique des états (map select, character select, countdown, GIF, win, playing) est déléguée au package game.
+"""
 import os
 import time
 import pygame
 from player.player import Player
 from smash_platform.game_platform import Platform
-from combat.hitbox_sprite import HitboxSprite
-from combat.projectile_sprite import ProjectileSprite
+from menu import MainMenu, SettingsMenu, ControlsMenu
 
-try:
-    from PIL import Image, ImageSequence
-    _HAS_PIL = True
-except ImportError:
-    _HAS_PIL = False
+from game.config import (
+    WIDTH, HEIGHT, JOY_DEADZONE, JOY_BTN_JUMP, JOY_BTN_START,
+)
+from game.context import GameContext
+from game.input_handling import init_joysticks, tick_joystick_rescan
+from game.screens import (
+    MapSelectScreen,
+    CharacterSelectScreen,
+    CountdownScreen,
+    VersusGifScreen,
+    WaitP1EnterScreen,
+    VersusGifP1ConfirmScreen,
+    EnterGifScreen,
+    EnterThenAGifScreen,
+    NickWinScreen,
+    JudyWinScreen,
+    PlayingScreen,
+)
 
-
-def load_gif_frames(path, scale_size=None):
-    """Charge les frames d'un GIF animé. Retourne liste de (Surface, duration_ms)."""
-    if not _HAS_PIL:
-        try:
-            surf = pygame.image.load(path).convert_alpha()
-            if scale_size:
-                surf = pygame.transform.smoothscale(surf, scale_size)
-            return [(surf, 50)]
-        except Exception:
-            return []
-    frames = []
-    try:
-        with Image.open(path) as gif:
-            for frame in ImageSequence.Iterator(gif):
-                f = frame.convert("RGBA")
-                size = f.size
-                data = f.tobytes()
-                surf = pygame.image.frombytes(data, size, "RGBA")
-                surf = surf.convert_alpha()
-                if scale_size:
-                    surf = pygame.transform.smoothscale(surf, scale_size)
-                duration = 50
-                if hasattr(frame, "info") and "duration" in frame.info:
-                    duration = max(20, frame.info["duration"])
-                frames.append((surf, duration))
-    except Exception:
-        try:
-            surf = pygame.image.load(path).convert_alpha()
-            if scale_size:
-                surf = pygame.transform.smoothscale(surf, scale_size)
-            return [(surf, 50)]
-        except Exception:
-            return []
-    return frames if frames else []
-
-
+# --- Init Pygame ---
 pygame.init()
 pygame.font.init()
 pygame.joystick.init()
-# Délai pour que macOS/Bluetooth expose la manette à SDL avant le premier scan
+try:
+    pygame.mixer.init()
+except Exception:
+    pass
 time.sleep(1.2)
 
-WIDTH, HEIGHT = 1920, 1080
-screen = pygame.display.set_mode((WIDTH, HEIGHT))
+fullscreen_mode = True
+screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.FULLSCREEN if fullscreen_mode else 0)
 clock = pygame.time.Clock()
+screen_w, screen_h = screen.get_size()
+world_w, world_h = screen_w * 2, screen_h * 2
+base_dir = os.path.dirname(os.path.abspath(__file__))
 
-_screen_w, _screen_h = screen.get_size()
-WORLD_W, WORLD_H = _screen_w * 2, _screen_h * 2
+# --- Contexte (assets + état) ---
+ctx = GameContext(screen, clock, base_dir, (screen_w, screen_h), (world_w, world_h))
+ctx.fullscreen_mode = fullscreen_mode
+ctx.window_size = (WIDTH, HEIGHT)
 
-_base_dir = os.path.dirname(os.path.abspath(__file__))
-_bg_path = os.path.join(_base_dir, "assets", "background map", "BG.png")
-_background_raw = pygame.image.load(_bg_path).convert()
-BACKGROUND = pygame.transform.smoothscale(_background_raw, (WORLD_W, WORLD_H))
-world_surface = pygame.Surface((WORLD_W, WORLD_H))
-
-# Mettre à True pour afficher en console les manettes détectées et les boutons/axes reçus
-DEBUG_JOYSTICK = True
-
-CAMERA_LERP = 0.08
-camera_x = WORLD_W // 2 - _screen_w // 2
-camera_y = WORLD_H // 2 - _screen_h // 2
-
-try:
-    FONT_PERCENT = pygame.font.SysFont("arial", 72, bold=True)
-except Exception:
-    FONT_PERCENT = pygame.font.Font(None, 120)
-
-_nick_win_gif_path = os.path.join(_base_dir, "assets", "Nick", "win_nick", "1.gif")
-_judy_win_gif_path = os.path.join(_base_dir, "assets", "JUDY_HOPPS", "judy_win", "1 (1).gif")
-_title_screen_path = os.path.join(_base_dir, "assets", "BG_perso", "1.png")
-_versus_gif_path = os.path.join(_base_dir, "assets", "BG_perso", "1 (4).gif")
-_versus_gif_p1_confirm_path = os.path.join(_base_dir, "assets", "BG_perso", "1 (5).gif")
-_enter_gif_path = os.path.join(_base_dir, "assets", "BG_perso", "1 (2).gif")
-_enter_then_a_gif_path = os.path.join(_base_dir, "assets", "BG_perso", "1 (3).gif")
-NICK_WIN_FRAMES = load_gif_frames(_nick_win_gif_path, scale_size=(_screen_w, _screen_h))
-VERSUS_GIF_FRAMES = load_gif_frames(_versus_gif_path, scale_size=(_screen_w, _screen_h))
-P1_CONFIRM_GIF_FRAMES = load_gif_frames(_versus_gif_p1_confirm_path, scale_size=(_screen_w, _screen_h))
-ENTER_GIF_FRAMES = load_gif_frames(_enter_gif_path, scale_size=(_screen_w, _screen_h))
-ENTER_THEN_A_GIF_FRAMES = load_gif_frames(_enter_then_a_gif_path, scale_size=(_screen_w, _screen_h))
-JUDY_WIN_FRAMES = load_gif_frames(_judy_win_gif_path, scale_size=(_screen_w, _screen_h))
-try:
-    _title_img = pygame.image.load(_title_screen_path).convert()
-    TITLE_SCREEN = pygame.transform.smoothscale(_title_img, (_screen_w, _screen_h))
-except Exception:
-    TITLE_SCREEN = None
-
-_counter_dir = os.path.join(_base_dir, "assets", "counter")
-COUNTER_HEIGHT = 180
-COUNTER_SURFACES = []
-for name in ("3.png", "2.png", "1.png", "go.png"):
-    try:
-        img = pygame.image.load(os.path.join(_counter_dir, name)).convert_alpha()
-        w = int(img.get_width() * COUNTER_HEIGHT / img.get_height())
-        COUNTER_SURFACES.append(pygame.transform.smoothscale(img, (w, COUNTER_HEIGHT)))
-    except Exception:
-        COUNTER_SURFACES.append(None)
-
-_ping_dir = os.path.join(_base_dir, "assets", "Ping")
-PING_HEIGHT = 60
-try:
-    _p1_img = pygame.image.load(os.path.join(_ping_dir, "P1.png")).convert_alpha()
-    PING_P1 = pygame.transform.smoothscale(_p1_img, (int(_p1_img.get_width() * PING_HEIGHT / _p1_img.get_height()), PING_HEIGHT))
-except Exception:
-    PING_P1 = None
-try:
-    _p2_img = pygame.image.load(os.path.join(_ping_dir, "P2.png")).convert_alpha()
-    PING_P2 = pygame.transform.smoothscale(_p2_img, (int(_p2_img.get_width() * PING_HEIGHT / _p2_img.get_height()), PING_HEIGHT))
-except Exception:
-    PING_P2 = None
-PING_OFFSET_ABOVE = 15
-
-_judy_portrait_path = os.path.join(_base_dir, "assets", "JUDY_HOPPS", "PP_judy.png", "PP.png")
-_nick_portrait_path = os.path.join(_base_dir, "assets", "Nick", "nick_PP", "PP.png")
-PORTRAIT_HEIGHT = 200
-PORTRAIT_SIDE_MARGIN = 20
-HUD_BOTTOM_Y_OFFSET = 35
-try:
-    _judy_pp = pygame.image.load(_judy_portrait_path).convert_alpha()
-    _jw = int(_judy_pp.get_width() * PORTRAIT_HEIGHT / _judy_pp.get_height())
-    JUDY_PORTRAIT = pygame.transform.smoothscale(_judy_pp, (_jw, PORTRAIT_HEIGHT))
-except Exception:
-    JUDY_PORTRAIT = None
-try:
-    _nick_pp = pygame.image.load(_nick_portrait_path).convert_alpha()
-    _nw = int(_nick_pp.get_width() * PORTRAIT_HEIGHT / _nick_pp.get_height())
-    NICK_PORTRAIT = pygame.transform.smoothscale(_nick_pp, (_nw, PORTRAIT_HEIGHT))
-except Exception:
-    NICK_PORTRAIT = None
-
-LIFE_ICON_SIZE = 44
-_life_judy_path = os.path.join(_base_dir, "assets", "JUDY_HOPPS", "vie", "Pv_juddy.png")
-_life_nick_path = os.path.join(_base_dir, "assets", "Nick", "pv", "pv_nick.png")
-LIFE_ICON_JUDY = None
-LIFE_ICON_NICK = None
-try:
-    _lj = pygame.image.load(_life_judy_path).convert_alpha()
-    LIFE_ICON_JUDY = pygame.transform.smoothscale(_lj, (LIFE_ICON_SIZE, LIFE_ICON_SIZE))
-except Exception:
-    pass
-try:
-    _ln = pygame.image.load(_life_nick_path).convert_alpha()
-    LIFE_ICON_NICK = pygame.transform.smoothscale(_ln, (LIFE_ICON_SIZE, LIFE_ICON_SIZE))
-except Exception:
-    pass
-
-nick_win_frame_index = 0
-nick_win_frame_timer_ms = 0
-judy_win_frame_index = 0
-judy_win_frame_timer_ms = 0
-game_state = "title_screen"
-countdown_step = 0
-countdown_timer_ms = 0
-COUNTDOWN_DURATION_MS = 1000
-versus_gif_frame_index = 0
-versus_gif_timer_ms = 0
-versus_gif_phase = "playing"
-wait_after_gif_timer_ms = 0
-WAIT_AFTER_GIF_MS = 2000
-p1_confirm_frame_index = 0
-p1_confirm_timer_ms = 0
-p1_confirm_phase = "playing"
-wait_after_p1_confirm_timer_ms = 0
-WAIT_AFTER_P1_CONFIRM_MS = 2000
-enter_gif_frame_index = 0
-enter_gif_timer_ms = 0
-enter_gif_phase = "playing"
-wait_after_enter_gif_timer_ms = 0
-enter_then_a_frame_index = 0
-enter_then_a_timer_ms = 0
-enter_then_a_phase = "playing"
-wait_after_enter_then_a_timer_ms = 0
-WAIT_AFTER_ENTER_GIF_MS = 2000
-WAIT_AFTER_ENTER_THEN_A_MS = 2000
-
+# --- Joueurs ---
 player1 = Player(
-    start_pos=(WORLD_W // 2 - 200, WORLD_H // 2),
+    start_pos=(world_w // 2 - 200, world_h // 2),
     color=(255, 0, 0),
-    controls={
-        "left": pygame.K_q,
-        "right": pygame.K_d,
-        "jump": pygame.K_SPACE,
-        "down": pygame.K_s,
-        "attacking": pygame.K_f,
-        "special": pygame.K_e,
-        "grab": pygame.K_g,
-        "counter": pygame.K_h,
-    },
-    screen_size=(WORLD_W, WORLD_H)
+    controls={"left": pygame.K_q, "right": pygame.K_d, "jump": pygame.K_SPACE, "down": pygame.K_s, "attacking": pygame.K_f, "special": pygame.K_e, "grab": pygame.K_g, "counter": pygame.K_h},
+    screen_size=(world_w, world_h),
 )
-
 player2 = Player(
-    start_pos=(WORLD_W // 2 + 200, WORLD_H // 2),
+    start_pos=(world_w // 2 + 200, world_h // 2),
     color=(0, 0, 255),
-    controls={
-        "left": pygame.K_LEFT,
-        "right": pygame.K_RIGHT,
-        "jump": pygame.K_UP,
-        "down": pygame.K_DOWN,
-        "attacking": pygame.K_m,
-        "special": pygame.K_i,
-        "grab": pygame.K_o,
-        "counter": pygame.K_j,
-    },
-    screen_size=(WORLD_W, WORLD_H),
+    controls={"left": pygame.K_LEFT, "right": pygame.K_RIGHT, "jump": pygame.K_UP, "down": pygame.K_DOWN, "attacking": pygame.K_m, "special": pygame.K_i, "grab": pygame.K_o, "counter": pygame.K_j},
+    screen_size=(world_w, world_h),
     character="nick",
 )
+ctx.player1 = player1
+ctx.player2 = player2
+ctx.players = pygame.sprite.Group(player1, player2)
+ctx.hitboxes = pygame.sprite.Group()
 
-players = pygame.sprite.Group(player1, player2)
+# --- Plateformes ---
+a = ctx.assets
+wc_x, wc_y = world_w // 2, world_h // 2
 platforms = pygame.sprite.Group()
-hitboxes = pygame.sprite.Group()
-
-# Manettes : P1 = joystick 0, P2 = joystick 1 (PS4 / Xbox)
-_joystick_rescan_frames = 0  # pour re-scan périodique quand 0 manette
-_joystick_ever_seen = False  # si True, ne plus faire quit/init (évite de perdre la manette)
-_last_joystick_count = -1  # pour n'afficher qu'au changement
-
-def _init_joysticks(force_log=False):
-    """Initialise les manettes et assigne joy_id aux joueurs."""
-    global _last_joystick_count
-    n = pygame.joystick.get_count()
-    for i in range(n):
-        try:
-            j = pygame.joystick.Joystick(i)
-            j.init()
-        except Exception:
-            pass
-    # Toujours synchroniser joy_id avec le nombre de manettes (permet re-scan)
-    player1.joy_id = 0 if n >= 1 else None
-    player2.joy_id = 1 if n >= 2 else None
-    # N'afficher qu'au premier scan ou quand le nombre change (évite le spam "0")
-    do_log = DEBUG_JOYSTICK and (force_log or n != _last_joystick_count)
-    if do_log:
-        _last_joystick_count = n
-        _init_joysticks._logged = True
-        print(f"[Manettes] Détectées: {n}")
-        for i in range(n):
-            try:
-                j = pygame.joystick.Joystick(i)
-                print(f"  Joystick {i}: {j.get_name()!r} (boutons={j.get_numbuttons()}, axes={j.get_numaxes()})")
-            except Exception as e:
-                print(f"  Joystick {i}: erreur {e}")
-
-
-# Premier scan (pas de quit/init pour ne pas perdre la manette macOS/Bluetooth)
-_init_joysticks()
-JOY_DEADZONE = 0.35
-JOY_BTN_JUMP = 0      # X (PS4) / A (Xbox)
-JOY_BTN_SPECIAL = 1   # Cercle / B
-JOY_BTN_ATTACK = 2    # Carré / X
-JOY_BTN_GRAB = 3      # Triangle / Y
-JOY_BTN_COUNTER = 4   # L1 / LB
-JOY_BTN_START = 9     # Options (PS4) / Menu (Xbox) — confirmer / démarrer
-
-
-def _get_player_input_state(player):
-    """Retourne (left, right, up, down) depuis clavier ou manette."""
-    joy_id = getattr(player, "joy_id", None)
-    if joy_id is not None and joy_id < pygame.joystick.get_count():
-        try:
-            joy = pygame.joystick.Joystick(joy_id)
-            ax0 = joy.get_axis(0) if joy.get_numaxes() > 0 else 0.0
-            ax1 = joy.get_axis(1) if joy.get_numaxes() > 1 else 0.0
-            left = ax0 < -JOY_DEADZONE
-            right = ax0 > JOY_DEADZONE
-            up = ax1 < -JOY_DEADZONE
-            down = ax1 > JOY_DEADZONE
-            if joy.get_numhats() > 0:
-                hx, hy = joy.get_hat(0)
-                if hx < 0:
-                    left = True
-                if hx > 0:
-                    right = True
-                if hy > 0:
-                    up = True
-                if hy < 0:
-                    down = True
-            return (left, right, up, down)
-        except Exception:
-            pass
-    keys = pygame.key.get_pressed()
-    return (
-        keys[player.controls["left"]],
-        keys[player.controls["right"]],
-        keys[player.controls["jump"]],
-        keys[player.controls.get("down", pygame.K_s)],
-    )
-
-
-def _start_attack_from_input(player, hitboxes, jab, ftilt, utilt, dtilt, nair, fair, bair, uair, dair):
-    left, right, up, down = _get_player_input_state(player)
-    on_ground = getattr(player, "on_ground", True)
-    facing_right = getattr(player, "facing_right", True)
-    if on_ground:
-        if up:
-            player.start_attack(utilt, hitboxes)
-        elif down:
-            player.start_attack(dtilt, hitboxes)
-        elif left or right:
-            player.start_attack(ftilt, hitboxes)
-        else:
-            player.start_attack(jab, hitboxes)
-    else:
-        if up:
-            player.start_attack(uair, hitboxes)
-        elif down:
-            player.start_attack(dair, hitboxes)
-        elif (right and facing_right) or (left and not facing_right):
-            player.start_attack(fair, hitboxes)
-        elif (left and facing_right) or (right and not facing_right):
-            player.start_attack(bair, hitboxes)
-        else:
-            player.start_attack(nair, hitboxes)
-
-
-def draw_player_ping(surface, player, ping_surface):
-    """Dessine l'indicateur P1/P2 au-dessus du joueur (comme Smash Bros)."""
-    if ping_surface is None or getattr(player, "lives", 1) <= 0:
-        return
-    r = ping_surface.get_rect(centerx=player.rect.centerx, bottom=player.rect.top - PING_OFFSET_ABOVE)
-    surface.blit(ping_surface, r.topleft)
-
-
-def draw_percent_hud(surface, player, x: int, y: int, align_left: bool = True):
-
-    percent = int(player.stats.percent)
-    lives = max(0, player.lives)
-    character = getattr(player, "character", None)
-    life_icon = LIFE_ICON_JUDY if character == "judy" else (LIFE_ICON_NICK if character == "nick" else None)
-    text_percent = f"{percent}%"
-    img_percent = FONT_PERCENT.render(text_percent, True, player.color if lives > 0 else (100, 100, 100))
-    icon_w = LIFE_ICON_SIZE
-    gap = 6
-    if align_left:
-        if life_icon and lives > 0:
-            for i in range(lives):
-                surface.blit(life_icon, (x + i * (icon_w + gap), y - icon_w // 2))
-            stocks_right = x + lives * (icon_w + gap) - gap
-            r_percent = img_percent.get_rect(midleft=(stocks_right + 24, y))
-        else:
-            text_stocks = FONT_PERCENT.render(f"{lives}", True, player.color if lives > 0 else (100, 100, 100))
-            r_stocks = text_stocks.get_rect(midleft=(x, y))
-            surface.blit(text_stocks, r_stocks)
-            r_percent = img_percent.get_rect(midleft=(r_stocks.right + 20, y))
-        surface.blit(img_percent, r_percent)
-    else:
-        r_percent = img_percent.get_rect(midright=(x, y))
-        surface.blit(img_percent, r_percent)
-        if life_icon and lives > 0:
-            start_x = r_percent.left - 24 - lives * (icon_w + gap) + gap
-            for i in range(lives):
-                surface.blit(life_icon, (start_x + i * (icon_w + gap), y - icon_w // 2))
-        else:
-            text_stocks = FONT_PERCENT.render(f"{lives}", True, player.color if lives > 0 else (100, 100, 100))
-            r_stocks = text_stocks.get_rect(midright=(r_percent.left - 20, y))
-            surface.blit(text_stocks, r_stocks)
-
-MAIN_W, MAIN_H = 1000, 25
-SMALL_W, SMALL_H = 220, 18
-
-_grande_platform_path = os.path.join(_base_dir, "assets", "plaform", "Grande.png")
-MAIN_PLATFORM_IMAGE = None
-MAIN_PLATFORM_SIZE = (MAIN_W, MAIN_H)
-try:
-    _grande_img = pygame.image.load(_grande_platform_path).convert_alpha()
-    _gw, _gh = _grande_img.get_size()
-    _main_h = max(25, int(_gh * MAIN_W / _gw))
-    MAIN_PLATFORM_SIZE = (MAIN_W, _main_h)
-    MAIN_PLATFORM_IMAGE = pygame.transform.smoothscale(_grande_img, MAIN_PLATFORM_SIZE)
-except Exception:
-    pass
-
-_petite_platform_path = os.path.join(_base_dir, "assets", "plaform", "PETITE.png")
-SMALL_PLATFORM_STRETCH = 1.12
-SMALL_PLATFORM_IMAGE = None
-SMALL_PLATFORM_SIZE = (SMALL_W, SMALL_H)
-try:
-    _petite_img = pygame.image.load(_petite_platform_path).convert_alpha()
-    _pw, _ph = _petite_img.get_size()
-    _small_h = max(18, int(_ph * SMALL_W / _pw))
-    _small_w = int(SMALL_W * SMALL_PLATFORM_STRETCH)
-    _small_h = int(_small_h * SMALL_PLATFORM_STRETCH)
-    SMALL_PLATFORM_SIZE = (_small_w, _small_h)
-    SMALL_PLATFORM_IMAGE = pygame.transform.smoothscale(_petite_img, SMALL_PLATFORM_SIZE)
-except Exception:
-    pass
-
-world_center_x = WORLD_W // 2
-world_center_y = WORLD_H // 2
-
 platforms.add(
-    Platform(
-        MAIN_PLATFORM_SIZE,
-        (world_center_x - MAIN_PLATFORM_SIZE[0] // 2, world_center_y + 200),
-        image=MAIN_PLATFORM_IMAGE,
-        surface_offset=int(MAIN_PLATFORM_SIZE[1] * 0.42) if MAIN_PLATFORM_IMAGE else 0
-    ),
-    Platform(
-        SMALL_PLATFORM_SIZE,
-        (world_center_x - 350 - SMALL_PLATFORM_SIZE[0] // 2, world_center_y - 150),
-        one_way=True,
-        image=SMALL_PLATFORM_IMAGE,
-        surface_offset=int(SMALL_PLATFORM_SIZE[1] * 0.38)
-    ),
-    Platform(
-        SMALL_PLATFORM_SIZE,
-        (world_center_x + 350 - SMALL_PLATFORM_SIZE[0] // 2, world_center_y - 150),
-        one_way=True,
-        image=SMALL_PLATFORM_IMAGE,
-        surface_offset=int(SMALL_PLATFORM_SIZE[1] * 0.38)
-    ),
+    Platform(a.main_platform_size, (wc_x - a.main_platform_size[0] // 2, wc_y + 200), image=a.main_platform_image, surface_offset=int(a.main_platform_size[1] * 0.42) if a.main_platform_image else 0),
+    Platform(a.small_platform_size, (wc_x - 350 - a.small_platform_size[0] // 2, wc_y - 150), one_way=True, image=a.small_platform_image, surface_offset=int(a.small_platform_size[1] * 0.38)),
+    Platform(a.small_platform_size, (wc_x + 350 - a.small_platform_size[0] // 2, wc_y - 150), one_way=True, image=a.small_platform_image, surface_offset=int(a.small_platform_size[1] * 0.38)),
 )
+ctx.platforms = platforms
 
-running = True
-while running:
-    # Re-scan périodique seulement si on n'a jamais vu de manette (évite de la perdre après quit/init)
-    n_joy = pygame.joystick.get_count()
-    if n_joy > 0:
-        _joystick_ever_seen = True
-        _joystick_rescan_frames = 0
-    elif not _joystick_ever_seen:
-        _joystick_rescan_frames += 1
-        if _joystick_rescan_frames >= 60:  # toutes les ~1 s
-            _joystick_rescan_frames = 0
-            pygame.joystick.quit()
-            pygame.joystick.init()
+init_joysticks(player1, player2)
+
+# --- Menus (existant) ---
+main_menu = MainMenu(
+    screen_w, screen_h,
+    ("VERSUS", "PARAMETRES", "QUITTER"),
+    title="SMASH",
+    title_image=a.menu_title_image,
+    background=a.menu_background,
+    big_rect_background=a.menu_button_play_bg,
+    big_rect_background_param=a.menu_button_param_bg,
+    big_rect_background_quit=a.menu_button_exit_bg,
+    joy_deadzone=JOY_DEADZONE,
+    joy_confirm_buttons=(JOY_BTN_JUMP, JOY_BTN_START),
+)
+settings_menu = SettingsMenu(screen_w, screen_h, get_fullscreen=lambda: ctx.fullscreen_mode, joy_deadzone=JOY_DEADZONE, joy_confirm_buttons=(JOY_BTN_JUMP, JOY_BTN_START))
+controls_menu = ControlsMenu(screen_w, screen_h, player1.controls, player2.controls, joy_deadzone=JOY_DEADZONE, joy_confirm_buttons=(JOY_BTN_JUMP, JOY_BTN_START))
+
+# --- Écrans de jeu (POO) ---
+map_select_screen = MapSelectScreen()
+character_select_screen = CharacterSelectScreen()
+countdown_screen = CountdownScreen()
+versus_gif_screen = VersusGifScreen()
+wait_p1_enter_screen = WaitP1EnterScreen()
+versus_gif_p1_confirm_screen = VersusGifP1ConfirmScreen()
+enter_gif_screen = EnterGifScreen()
+enter_then_a_screen = EnterThenAGifScreen()
+nick_win_screen = NickWinScreen()
+judy_win_screen = JudyWinScreen()
+playing_screen = PlayingScreen()
+
+# --- Boucle principale ---
+while ctx.running:
+    tick_joystick_rescan(player1, player2)
+
+    if ctx.game_state == "main_menu":
+        if a.menu_music_loaded and not ctx.menu_music_playing:
             try:
-                pygame.event.clear()
+                pygame.mixer.music.play(-1)
+                ctx.menu_music_playing = True
             except Exception:
                 pass
-            _init_joysticks._logged = False
-            _init_joysticks(force_log=True)
-    _init_joysticks()
-    if game_state == "title_screen":
+        try:
+            events = pygame.event.get()
+        except (KeyError, SystemError):
+            events = []
+        n_joy = pygame.joystick.get_count()
+        for event in events:
+            if event.type == pygame.QUIT:
+                if ctx.menu_music_playing:
+                    try:
+                        pygame.mixer.music.stop()
+                        ctx.menu_music_playing = False
+                    except Exception:
+                        pass
+                ctx.running = False
+                break
+            selected = main_menu.handle_event(event, n_joy)
+            if selected == "QUITTER":
+                if ctx.menu_music_playing:
+                    try:
+                        pygame.mixer.music.stop()
+                        ctx.menu_music_playing = False
+                    except Exception:
+                        pass
+                ctx.running = False
+                break
+            if selected == "VERSUS":
+                if ctx.menu_music_playing:
+                    try:
+                        pygame.mixer.music.stop()
+                        ctx.menu_music_playing = False
+                    except Exception:
+                        pass
+                ctx.game_state = "map_select"
+                ctx.map_select_cursor = 0
+                ctx.char_select_phase = "p1"
+                ctx.char_select_cursor = 0
+                ctx.p1_character_choice = None
+                ctx.p2_character_choice = None
+                break
+            if selected == "PARAMETRES":
+                ctx.game_state = "settings"
+                break
+        if not ctx.running:
+            break
+        main_menu.update(n_joy)
+        if ctx.game_state == "main_menu":
+            main_menu.draw(screen)
+            pygame.display.flip()
+            clock.tick(60)
+            continue
+
+    if ctx.game_state == "settings":
+        try:
+            events = pygame.event.get()
+        except (KeyError, SystemError):
+            events = []
+        n_joy = pygame.joystick.get_count()
+        for event in events:
+            if event.type == pygame.QUIT:
+                ctx.running = False
+                break
+            action = settings_menu.handle_event(event, n_joy)
+            if action == "back":
+                ctx.game_state = "main_menu"
+                break
+            if action == "controls":
+                ctx.game_state = "controls"
+                break
+            if action == "toggle_fullscreen":
+                ctx.fullscreen_mode = not ctx.fullscreen_mode
+                ctx.screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.FULLSCREEN if ctx.fullscreen_mode else 0)
+                break
+        if not ctx.running:
+            break
+        settings_menu.update(n_joy)
+        if ctx.game_state == "settings":
+            settings_menu.draw(screen)
+            pygame.display.flip()
+            clock.tick(60)
+            continue
+
+    if ctx.game_state == "controls":
+        try:
+            events = pygame.event.get()
+        except (KeyError, SystemError):
+            events = []
+        n_joy = pygame.joystick.get_count()
+        for event in events:
+            if event.type == pygame.QUIT:
+                ctx.running = False
+                break
+            action = controls_menu.handle_event(event, n_joy)
+            if action == "back":
+                ctx.game_state = "settings"
+                break
+        if not ctx.running:
+            break
+        controls_menu.update(n_joy)
+        if ctx.game_state == "controls":
+            controls_menu.draw(screen)
+            pygame.display.flip()
+            clock.tick(60)
+            continue
+
+    if ctx.game_state == "title_screen":
         try:
             events = pygame.event.get()
         except (KeyError, SystemError):
             events = []
         for event in events:
             if event.type == pygame.QUIT:
-                running = False
+                ctx.running = False
             if event.type == pygame.KEYDOWN and event.key == pygame.K_a:
-                game_state = "versus_gif"
-                versus_gif_frame_index = 0
-                versus_gif_timer_ms = 0
-                versus_gif_phase = "playing"
-                wait_after_gif_timer_ms = 0
+                ctx.game_state = "versus_gif"
+                ctx.versus_gif_frame_index = 0
+                ctx.versus_gif_timer_ms = 0
+                ctx.versus_gif_phase = "playing"
+                ctx.wait_after_gif_timer_ms = 0
             if event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
-                game_state = "versus_gif_enter"
-                enter_gif_frame_index = 0
-                enter_gif_timer_ms = 0
-                enter_gif_phase = "playing"
-                wait_after_enter_gif_timer_ms = 0
-            # Manette : X (0) = A, Options (9) = Entrée (ne pas lire event.joy si 0 manette)
+                ctx.game_state = "versus_gif_enter"
+                ctx.enter_gif_frame_index = 0
+                ctx.enter_gif_timer_ms = 0
+                ctx.enter_gif_phase = "playing"
+                ctx.wait_after_enter_gif_timer_ms = 0
             if event.type == pygame.JOYBUTTONDOWN and pygame.joystick.get_count() > 0 and event.joy == 0:
                 if event.button == JOY_BTN_JUMP:
-                    game_state = "versus_gif"
-                    versus_gif_frame_index = 0
-                    versus_gif_timer_ms = 0
-                    versus_gif_phase = "playing"
-                    wait_after_gif_timer_ms = 0
+                    ctx.game_state = "versus_gif"
+                    ctx.versus_gif_frame_index = 0
+                    ctx.versus_gif_timer_ms = 0
+                    ctx.versus_gif_phase = "playing"
+                    ctx.wait_after_gif_timer_ms = 0
                 elif event.button == JOY_BTN_START:
-                    game_state = "versus_gif_enter"
-                    enter_gif_frame_index = 0
-                    enter_gif_timer_ms = 0
-                    enter_gif_phase = "playing"
-                    wait_after_enter_gif_timer_ms = 0
-        if not running:
+                    ctx.game_state = "versus_gif_enter"
+                    ctx.enter_gif_frame_index = 0
+                    ctx.enter_gif_timer_ms = 0
+                    ctx.enter_gif_phase = "playing"
+                    ctx.wait_after_enter_gif_timer_ms = 0
+        if not ctx.running:
             break
-        if game_state == "title_screen":
-            if TITLE_SCREEN:
-                screen.blit(TITLE_SCREEN, (0, 0))
+        if ctx.game_state == "title_screen":
+            if a.title_screen:
+                screen.blit(a.title_screen, (0, 0))
             pygame.display.flip()
             clock.tick(60)
             continue
 
-    if game_state == "versus_gif_enter":
-        dt_ms = clock.get_time()
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
-            if event.type == pygame.KEYDOWN and event.key == pygame.K_a:
-                game_state = "versus_gif_enter_then_a"
-                enter_then_a_frame_index = 0
-                enter_then_a_timer_ms = 0
-                enter_then_a_phase = "playing"
-                wait_after_enter_then_a_timer_ms = 0
-            if event.type == pygame.JOYBUTTONDOWN and event.joy == 0 and event.button in (JOY_BTN_JUMP, JOY_BTN_START):
-                game_state = "versus_gif_enter_then_a"
-                enter_then_a_frame_index = 0
-                enter_then_a_timer_ms = 0
-                enter_then_a_phase = "playing"
-                wait_after_enter_then_a_timer_ms = 0
-        if not running:
-            break
-        if enter_gif_phase == "playing" and ENTER_GIF_FRAMES:
-            enter_gif_timer_ms += dt_ms
-            surf, duration_ms = ENTER_GIF_FRAMES[enter_gif_frame_index]
-            while enter_gif_timer_ms >= duration_ms:
-                enter_gif_timer_ms -= duration_ms
-                enter_gif_frame_index += 1
-                if enter_gif_frame_index >= len(ENTER_GIF_FRAMES):
-                    enter_gif_phase = "waiting"
-                    enter_gif_frame_index = len(ENTER_GIF_FRAMES) - 1
-                    break
-                surf, duration_ms = ENTER_GIF_FRAMES[enter_gif_frame_index]
-            if ENTER_GIF_FRAMES:
-                surf, _ = ENTER_GIF_FRAMES[enter_gif_frame_index]
-                screen.blit(surf, (0, 0))
-        elif enter_gif_phase == "waiting":
-            wait_after_enter_gif_timer_ms += dt_ms
-            if ENTER_GIF_FRAMES:
-                surf, _ = ENTER_GIF_FRAMES[-1]
-                screen.blit(surf, (0, 0))
-            if wait_after_enter_gif_timer_ms >= WAIT_AFTER_ENTER_GIF_MS:
-                game_state = "versus_gif_enter_then_a"
-                enter_then_a_frame_index = 0
-                enter_then_a_timer_ms = 0
-                enter_then_a_phase = "playing"
-                wait_after_enter_then_a_timer_ms = 0
-        else:
-            game_state = "versus_gif_enter_then_a"
-            enter_then_a_frame_index = 0
-            enter_then_a_timer_ms = 0
-            enter_then_a_phase = "playing"
-            wait_after_enter_then_a_timer_ms = 0
-        pygame.display.flip()
-        clock.tick(60)
+    if ctx.game_state == "map_select":
+        map_select_screen.run(ctx)
         continue
-
-    if game_state == "versus_gif_enter_then_a":
-        dt_ms = clock.get_time()
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
-        if not running:
-            break
-        if enter_then_a_phase == "playing" and ENTER_THEN_A_GIF_FRAMES:
-            enter_then_a_timer_ms += dt_ms
-            surf, duration_ms = ENTER_THEN_A_GIF_FRAMES[enter_then_a_frame_index]
-            while enter_then_a_timer_ms >= duration_ms:
-                enter_then_a_timer_ms -= duration_ms
-                enter_then_a_frame_index += 1
-                if enter_then_a_frame_index >= len(ENTER_THEN_A_GIF_FRAMES):
-                    enter_then_a_phase = "waiting"
-                    enter_then_a_frame_index = len(ENTER_THEN_A_GIF_FRAMES) - 1
-                    break
-                surf, duration_ms = ENTER_THEN_A_GIF_FRAMES[enter_then_a_frame_index]
-            if ENTER_THEN_A_GIF_FRAMES:
-                surf, _ = ENTER_THEN_A_GIF_FRAMES[enter_then_a_frame_index]
-                screen.blit(surf, (0, 0))
-        elif enter_then_a_phase == "waiting":
-            wait_after_enter_then_a_timer_ms += dt_ms
-            if ENTER_THEN_A_GIF_FRAMES:
-                surf, _ = ENTER_THEN_A_GIF_FRAMES[-1]
-                screen.blit(surf, (0, 0))
-            if wait_after_enter_then_a_timer_ms >= WAIT_AFTER_ENTER_THEN_A_MS:
-                game_state = "countdown"
-                countdown_step = 0
-                countdown_timer_ms = 0
-        else:
-            game_state = "countdown"
-            countdown_step = 0
-            countdown_timer_ms = 0
-        pygame.display.flip()
-        clock.tick(60)
+    if ctx.game_state == "character_select":
+        character_select_screen.run(ctx)
         continue
-
-    if game_state == "versus_gif":
-        dt_ms = clock.get_time()
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
-            if event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
-                game_state = "versus_gif_p1_confirm"
-            if event.type == pygame.JOYBUTTONDOWN and event.joy == 0 and event.button in (JOY_BTN_JUMP, JOY_BTN_START):
-                game_state = "versus_gif_p1_confirm"
-                p1_confirm_frame_index = 0
-                p1_confirm_timer_ms = 0
-                p1_confirm_phase = "playing"
-                wait_after_p1_confirm_timer_ms = 0
-        if not running:
-            break
-        if versus_gif_phase == "playing" and VERSUS_GIF_FRAMES:
-            versus_gif_timer_ms += dt_ms
-            surf, duration_ms = VERSUS_GIF_FRAMES[versus_gif_frame_index]
-            while versus_gif_timer_ms >= duration_ms:
-                versus_gif_timer_ms -= duration_ms
-                versus_gif_frame_index += 1
-                if versus_gif_frame_index >= len(VERSUS_GIF_FRAMES):
-                    versus_gif_phase = "waiting"
-                    versus_gif_frame_index = len(VERSUS_GIF_FRAMES) - 1
-                    break
-                surf, duration_ms = VERSUS_GIF_FRAMES[versus_gif_frame_index]
-            if VERSUS_GIF_FRAMES:
-                surf, _ = VERSUS_GIF_FRAMES[versus_gif_frame_index]
-                screen.blit(surf, (0, 0))
-        elif versus_gif_phase == "waiting":
-            wait_after_gif_timer_ms += dt_ms
-            if VERSUS_GIF_FRAMES:
-                surf, _ = VERSUS_GIF_FRAMES[-1]
-                screen.blit(surf, (0, 0))
-            if wait_after_gif_timer_ms >= WAIT_AFTER_GIF_MS:
-                game_state = "wait_p1_enter"
-        else:
-            game_state = "wait_p1_enter"
-        pygame.display.flip()
-        clock.tick(60)
+    if ctx.game_state == "versus_gif":
+        versus_gif_screen.run(ctx)
         continue
-
-    if game_state == "wait_p1_enter":
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
-            if event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
-                game_state = "versus_gif_p1_confirm"
-                p1_confirm_frame_index = 0
-                p1_confirm_timer_ms = 0
-                p1_confirm_phase = "playing"
-                wait_after_p1_confirm_timer_ms = 0
-            if event.type == pygame.JOYBUTTONDOWN and event.joy == 0 and event.button in (JOY_BTN_JUMP, JOY_BTN_START):
-                game_state = "versus_gif_p1_confirm"
-                p1_confirm_frame_index = 0
-                p1_confirm_timer_ms = 0
-                p1_confirm_phase = "playing"
-                wait_after_p1_confirm_timer_ms = 0
-        if not running:
-            break
-        if VERSUS_GIF_FRAMES:
-            surf, _ = VERSUS_GIF_FRAMES[-1]
-            screen.blit(surf, (0, 0))
-        pygame.display.flip()
-        clock.tick(60)
+    if ctx.game_state == "wait_p1_enter":
+        wait_p1_enter_screen.run(ctx)
         continue
-
-    if game_state == "versus_gif_p1_confirm":
-        dt_ms = clock.get_time()
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
-        if not running:
-            break
-        if p1_confirm_phase == "playing" and P1_CONFIRM_GIF_FRAMES:
-            p1_confirm_timer_ms += dt_ms
-            surf, duration_ms = P1_CONFIRM_GIF_FRAMES[p1_confirm_frame_index]
-            while p1_confirm_timer_ms >= duration_ms:
-                p1_confirm_timer_ms -= duration_ms
-                p1_confirm_frame_index += 1
-                if p1_confirm_frame_index >= len(P1_CONFIRM_GIF_FRAMES):
-                    p1_confirm_phase = "waiting"
-                    p1_confirm_frame_index = len(P1_CONFIRM_GIF_FRAMES) - 1
-                    break
-                surf, duration_ms = P1_CONFIRM_GIF_FRAMES[p1_confirm_frame_index]
-            if P1_CONFIRM_GIF_FRAMES:
-                surf, _ = P1_CONFIRM_GIF_FRAMES[p1_confirm_frame_index]
-                screen.blit(surf, (0, 0))
-        elif p1_confirm_phase == "waiting":
-            wait_after_p1_confirm_timer_ms += dt_ms
-            if P1_CONFIRM_GIF_FRAMES:
-                surf, _ = P1_CONFIRM_GIF_FRAMES[-1]
-                screen.blit(surf, (0, 0))
-            if wait_after_p1_confirm_timer_ms >= WAIT_AFTER_P1_CONFIRM_MS:
-                game_state = "countdown"
-                countdown_step = 0
-                countdown_timer_ms = 0
-        else:
-            game_state = "countdown"
-            countdown_step = 0
-            countdown_timer_ms = 0
-        pygame.display.flip()
-        clock.tick(60)
+    if ctx.game_state == "versus_gif_p1_confirm":
+        versus_gif_p1_confirm_screen.run(ctx)
         continue
-
-    if game_state == "countdown":
-        dt_ms = clock.get_time()
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
-        if not running:
-            break
-        countdown_timer_ms += dt_ms
-        if countdown_timer_ms >= COUNTDOWN_DURATION_MS:
-            countdown_timer_ms = 0
-            countdown_step += 1
-            if countdown_step >= 4:
-                game_state = "playing"
-                pygame.display.flip()
-                clock.tick(60)
-                continue
-        world_surface.blit(BACKGROUND, (0, 0))
-        platforms.draw(world_surface)
-        players.draw(world_surface)
-        draw_player_ping(world_surface, player1, PING_P1)
-        draw_player_ping(world_surface, player2, PING_P2)
-        screen.blit(world_surface, (0, 0), (int(camera_x), int(camera_y), _screen_w, _screen_h))
-        if countdown_step < 4 and COUNTER_SURFACES and COUNTER_SURFACES[countdown_step]:
-            surf = COUNTER_SURFACES[countdown_step]
-            x = (_screen_w - surf.get_width()) // 2
-            y = (_screen_h - surf.get_height()) // 2
-            screen.blit(surf, (x, y))
-        pygame.display.flip()
-        clock.tick(60)
+    if ctx.game_state == "versus_gif_enter":
+        enter_gif_screen.run(ctx)
         continue
-
-    if game_state == "playing" and player1.lives <= 0 and player2.lives > 0 and getattr(player2, "character", None) == "nick":
-        game_state = "nick_wins"
-        nick_win_frame_index = 0
-        nick_win_frame_timer_ms = 0
-    if game_state == "playing" and player2.lives <= 0 and player1.lives > 0 and getattr(player1, "character", "judy") == "judy":
-        game_state = "judy_wins"
-        judy_win_frame_index = 0
-        judy_win_frame_timer_ms = 0
-
-    if game_state == "nick_wins":
-        dt_ms = clock.get_time()
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_ESCAPE:
-                    running = False
-                else:
-                    game_state = "playing"
-                    player1.respawn()
-                    player2.respawn()
-                    player1.lives = 3
-                    player2.lives = 3
-            if event.type == pygame.JOYBUTTONDOWN:
-                if event.button == JOY_BTN_START:
-                    running = False
-                else:
-                    game_state = "playing"
-                    player1.respawn()
-                    player2.respawn()
-                    player1.lives = 3
-                    player2.lives = 3
-        if not running:
-            break
-        if NICK_WIN_FRAMES:
-            nick_win_frame_timer_ms += dt_ms
-            surf, duration_ms = NICK_WIN_FRAMES[nick_win_frame_index]
-            while nick_win_frame_timer_ms >= duration_ms and len(NICK_WIN_FRAMES) > 1:
-                nick_win_frame_timer_ms -= duration_ms
-                nick_win_frame_index = (nick_win_frame_index + 1) % len(NICK_WIN_FRAMES)
-                surf, duration_ms = NICK_WIN_FRAMES[nick_win_frame_index]
-            screen.blit(surf, (0, 0))
-        pygame.display.flip()
-        clock.tick(60)
+    if ctx.game_state == "versus_gif_enter_then_a":
+        enter_then_a_screen.run(ctx)
         continue
-
-    if game_state == "judy_wins":
-        dt_ms = clock.get_time()
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_ESCAPE:
-                    running = False
-                else:
-                    game_state = "playing"
-                    player1.respawn()
-                    player2.respawn()
-                    player1.lives = 3
-                    player2.lives = 3
-            if event.type == pygame.JOYBUTTONDOWN:
-                if event.button == JOY_BTN_START:
-                    running = False
-                else:
-                    game_state = "playing"
-                    player1.respawn()
-                    player2.respawn()
-                    player1.lives = 3
-                    player2.lives = 3
-        if not running:
-            break
-        if JUDY_WIN_FRAMES:
-            judy_win_frame_timer_ms += dt_ms
-            surf, duration_ms = JUDY_WIN_FRAMES[judy_win_frame_index]
-            while judy_win_frame_timer_ms >= duration_ms and len(JUDY_WIN_FRAMES) > 1:
-                judy_win_frame_timer_ms -= duration_ms
-                judy_win_frame_index = (judy_win_frame_index + 1) % len(JUDY_WIN_FRAMES)
-                surf, duration_ms = JUDY_WIN_FRAMES[judy_win_frame_index]
-            screen.blit(surf, (0, 0))
-        pygame.display.flip()
-        clock.tick(60)
+    if ctx.game_state == "countdown":
+        countdown_screen.run(ctx)
         continue
-
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            running = False
-
-        if event.type == pygame.KEYDOWN:
-            keys = pygame.key.get_pressed()
-            if event.key == player1.controls["jump"]:
-                player1.jump()
-            if event.key == player2.controls["jump"]:
-                player2.jump()
-
-            if event.key == player1.controls["attacking"] and player1.lives > 0:
-                _start_attack_from_input(player1, hitboxes, "jab", "ftilt", "utilt", "dtilt", "nair", "fair", "bair", "uair", "dair")
-            if event.key == player2.controls["attacking"] and player2.lives > 0:
-                _start_attack_from_input(player2, hitboxes, "jab", "ftilt", "utilt", "dtilt", "nair", "fair", "bair", "uair", "dair")
-
-            if event.key == player1.controls.get("grab") and player1.lives > 0:
-                player1.start_attack("grab", hitboxes)
-            if event.key == player2.controls.get("grab") and player2.lives > 0:
-                player2.start_attack("grab", hitboxes)
-
-            if event.key == player1.controls.get("counter") and player1.lives > 0:
-                player1.start_counter()
-            if event.key == player2.controls.get("counter") and player2.lives > 0:
-                player2.start_counter()
-
-            if event.key == player1.controls.get("special") and player1.lives > 0:
-                pl, pr, pu, pd = _get_player_input_state(player1)
-                if pl or pr:
-                    player1.start_attack("side_special", hitboxes)
-                elif pu:
-                    player1.start_attack("up_special", hitboxes)
-                elif pd:
-                    player1.start_attack("down_special", hitboxes)
-                else:
-                    ProjectileSprite(player1, hitboxes)
-                    player1.start_distance_attack_animation()
-            if event.key == player2.controls.get("special") and player2.lives > 0:
-                pl, pr, pu, pd = _get_player_input_state(player2)
-                if pl or pr:
-                    player2.start_attack("side_special", hitboxes)
-                elif pu:
-                    player2.start_attack("up_special", hitboxes)
-                elif pd:
-                    player2.start_attack("down_special", hitboxes)
-                else:
-                    ProjectileSprite(player2, hitboxes)
-                    player2.start_distance_attack_animation()
-
-        if event.type == pygame.JOYAXISMOTION and DEBUG_JOYSTICK and abs(event.value) > JOY_DEADZONE:
-            print(f"[Manette] axe joy={event.joy} axis={event.axis} value={event.value:.2f}")
-        if event.type == pygame.JOYBUTTONDOWN:
-            if DEBUG_JOYSTICK:
-                print(f"[Manette] bouton joy_id={event.joy} button={event.button}")
-            joy_id = event.joy
-            btn = event.button
-            if joy_id == 0 and getattr(player1, "joy_id", None) == 0:
-                if btn == JOY_BTN_JUMP:
-                    player1.jump()
-                elif btn == JOY_BTN_ATTACK and player1.lives > 0:
-                    _start_attack_from_input(player1, hitboxes, "jab", "ftilt", "utilt", "dtilt", "nair", "fair", "bair", "uair", "dair")
-                elif btn == JOY_BTN_GRAB and player1.lives > 0:
-                    player1.start_attack("grab", hitboxes)
-                elif btn == JOY_BTN_COUNTER and player1.lives > 0:
-                    player1.start_counter()
-                elif btn == JOY_BTN_SPECIAL and player1.lives > 0:
-                    pl, pr, pu, pd = _get_player_input_state(player1)
-                    if pl or pr:
-                        player1.start_attack("side_special", hitboxes)
-                    elif pu:
-                        player1.start_attack("up_special", hitboxes)
-                    elif pd:
-                        player1.start_attack("down_special", hitboxes)
-                    else:
-                        ProjectileSprite(player1, hitboxes)
-                        player1.start_distance_attack_animation()
-            if joy_id == 1 and getattr(player2, "joy_id", None) == 1:
-                if btn == JOY_BTN_JUMP:
-                    player2.jump()
-                elif btn == JOY_BTN_ATTACK and player2.lives > 0:
-                    _start_attack_from_input(player2, hitboxes, "jab", "ftilt", "utilt", "dtilt", "nair", "fair", "bair", "uair", "dair")
-                elif btn == JOY_BTN_GRAB and player2.lives > 0:
-                    player2.start_attack("grab", hitboxes)
-                elif btn == JOY_BTN_COUNTER and player2.lives > 0:
-                    player2.start_counter()
-                elif btn == JOY_BTN_SPECIAL and player2.lives > 0:
-                    pl, pr, pu, pd = _get_player_input_state(player2)
-                    if pl or pr:
-                        player2.start_attack("side_special", hitboxes)
-                    elif pu:
-                        player2.start_attack("up_special", hitboxes)
-                    elif pd:
-                        player2.start_attack("down_special", hitboxes)
-                    else:
-                        ProjectileSprite(player2, hitboxes)
-                        player2.start_distance_attack_animation()
-
-    player1.handle_input()
-    player2.handle_input()
-
-    player1.update([player2] + list(platforms))
-    player2.update([player1] + list(platforms))
-
-    hitboxes.update(list(players))
-
-    living = [p for p in (player1, player2) if getattr(p, "lives", 1) > 0]
-    if living:
-        cx = sum(p.rect.centerx for p in living) / len(living)
-        cy = sum(p.rect.centery for p in living) / len(living)
-        target_x = cx - _screen_w / 2
-        target_y = cy - _screen_h / 2
-        target_x = max(0, min(WORLD_W - _screen_w, target_x))
-        target_y = max(0, min(WORLD_H - _screen_h, target_y))
-        camera_x += (target_x - camera_x) * CAMERA_LERP
-        camera_y += (target_y - camera_y) * CAMERA_LERP
-        camera_x = max(0, min(WORLD_W - _screen_w, camera_x))
-        camera_y = max(0, min(WORLD_H - _screen_h, camera_y))
-
-    world_surface.blit(BACKGROUND, (0, 0))
-    hitboxes.draw(world_surface)
-    for hb in hitboxes:
-        hb.draw_hitboxes_debug(world_surface)
-    platforms.draw(world_surface)
-    players.draw(world_surface)
-    draw_player_ping(world_surface, player1, PING_P1)
-    draw_player_ping(world_surface, player2, PING_P2)
-
-    screen.blit(world_surface, (0, 0), (int(camera_x), int(camera_y), _screen_w, _screen_h))
-
-    _hud_y = _screen_h - HUD_BOTTOM_Y_OFFSET
-    draw_percent_hud(screen, player1, 80, _hud_y, align_left=True)
-    draw_percent_hud(screen, player2, _screen_w - 80, _hud_y, align_left=False)
-
-    _portrait_bottom = _hud_y - 25
-    if JUDY_PORTRAIT:
-        judy_rect = JUDY_PORTRAIT.get_rect(bottomleft=(PORTRAIT_SIDE_MARGIN, _portrait_bottom))
-        screen.blit(JUDY_PORTRAIT, judy_rect.topleft)
-    if NICK_PORTRAIT:
-        nick_rect = NICK_PORTRAIT.get_rect(bottomright=(_screen_w - PORTRAIT_SIDE_MARGIN, _portrait_bottom))
-        screen.blit(NICK_PORTRAIT, nick_rect.topleft)
-
-    pygame.display.flip()
-    clock.tick(60)
+    if ctx.game_state == "nick_wins":
+        nick_win_screen.run(ctx)
+        continue
+    if ctx.game_state == "judy_wins":
+        judy_win_screen.run(ctx)
+        continue
+    if ctx.game_state == "playing":
+        playing_screen.run(ctx)
+        continue
 
 pygame.quit()
