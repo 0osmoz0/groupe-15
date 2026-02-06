@@ -178,6 +178,20 @@ class GameAssets:
             "Sonic Unleashed Final Boss - Dark Gaia Phase 2 - Endless Possibility.mp3"
         )
         self.combat_music_loaded = os.path.isfile(self.combat_music_path)
+        self.win_music_path = os.path.join(
+            self.base_dir, "assets", "song", "win",
+            "Fanfare du Héros.mp3"
+        )
+        self.win_music_loaded = os.path.isfile(self.win_music_path)
+        # Sons de victoire Judy en WAV (pygame.mixer.Sound ne gère pas le MP3)
+        # Utiliser scripts/convert_judy_win_to_wav.sh pour générer les .wav depuis les .mp3
+        self.judy_win_sound_paths = [
+            os.path.join(self.base_dir, "assets", "song", "JudyWin", "winJudy.wav"),
+            os.path.join(self.base_dir, "assets", "song", "JudyWin", "WinJudy3.wav"),
+        ]
+        self.judy_win_sounds_loaded = [
+            os.path.isfile(p) for p in self.judy_win_sound_paths
+        ]
 
     def _load_counter(self):
         """Countdown 3-2-1-GO : charge les assets counter/3.png, 2.png, 1.png, go.png."""

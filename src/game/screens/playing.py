@@ -37,6 +37,10 @@ class PlayingScreen:
             ctx.nick_win_frame_timer_ms = 0
             try:
                 pygame.mixer.music.stop()
+                if getattr(ctx.assets, "win_music_loaded", False):
+                    pygame.mixer.music.load(ctx.assets.win_music_path)
+                    pygame.mixer.music.set_volume(0.15)
+                    pygame.mixer.music.play(0)
             except Exception:
                 pass
             ctx.combat_music_playing = False
@@ -47,6 +51,22 @@ class PlayingScreen:
             ctx.judy_win_frame_timer_ms = 0
             try:
                 pygame.mixer.music.stop()
+                if getattr(ctx.assets, "win_music_loaded", False):
+                    pygame.mixer.music.load(ctx.assets.win_music_path)
+                    pygame.mixer.music.set_volume(0.15)
+                    pygame.mixer.music.play(0)
+                # En plus : un des deux sons Judy au hasard (1 fois sur 2 chacun)
+                paths = getattr(ctx.assets, "judy_win_sound_paths", [])
+                loaded = getattr(ctx.assets, "judy_win_sounds_loaded", [])
+                if paths and loaded:
+                    idx = random.randrange(len(paths))
+                    if loaded[idx]:
+                        try:
+                            snd = pygame.mixer.Sound(paths[idx])
+                            snd.set_volume(1.0)
+                            snd.play()
+                        except Exception:
+                            pass
             except Exception:
                 pass
             ctx.combat_music_playing = False

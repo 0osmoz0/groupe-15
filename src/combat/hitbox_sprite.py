@@ -1,4 +1,5 @@
 import math
+import os
 import pygame
 from .attacks_data import get_attack_hitboxes
 from .attack import (
@@ -15,6 +16,31 @@ HURTBOX_RADIUS = 25
 COUNTER_DAMAGE = 6
 COUNTER_HITSTUN = 18
 COUNTER_LAUNCH_SPEED = 4
+
+_base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_melee_attack_sound = None
+
+def _get_melee_attack_sound():
+    global _melee_attack_sound
+    if _melee_attack_sound is None:
+        path = os.path.join(_base_dir, "assets", "song", "combat", "body to body", "aerial-attack.wav")
+        try:
+            _melee_attack_sound = pygame.mixer.Sound(path)
+        except Exception:
+            _melee_attack_sound = False
+    return _melee_attack_sound if _melee_attack_sound else None
+
+_counter_sound = None
+
+def _get_counter_sound():
+    global _counter_sound
+    if _counter_sound is None:
+        path = os.path.join(_base_dir, "assets", "song", "combat", "counter", "dash-attack.wav")
+        try:
+            _counter_sound = pygame.mixer.Sound(path)
+        except Exception:
+            _counter_sound = False
+    return _counter_sound if _counter_sound else None
 
 
 class HitboxSprite(pygame.sprite.Sprite):
@@ -35,6 +61,13 @@ class HitboxSprite(pygame.sprite.Sprite):
         self.image.set_alpha(0)
         self.rect = self.image.get_rect(center=getattr(owner, "rect", pygame.Rect(0, 0, 50, 50)).center)
         self.debug_draw = True
+        snd = _get_melee_attack_sound()
+        if snd is not None:
+            try:
+                snd.set_volume(0.35)
+                snd.play()
+            except Exception:
+                pass
 
     def _owner_center(self):
         r = getattr(self.owner, "rect", None)
@@ -106,6 +139,13 @@ class HitboxSprite(pygame.sprite.Sprite):
                     counter_remaining = getattr(victim, "_counter_remaining", 0)
                     if counter_remaining > 0:
                         victim._counter_remaining = 0
+                        snd = _get_counter_sound()
+                        if snd is not None:
+                            try:
+                                snd.set_volume(0.4)
+                                snd.play()
+                            except Exception:
+                                pass
                         ax, ay = self.owner.rect.centerx, self.owner.rect.centery
                         dx = ax - vx
                         dy = ay - vy

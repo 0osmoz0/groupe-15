@@ -34,6 +34,18 @@ def _get_distance_attack_sound():
             _distance_attack_sound = False
     return _distance_attack_sound if _distance_attack_sound else None
 
+_counter_sound = None
+
+def _get_counter_sound():
+    global _counter_sound
+    if _counter_sound is None:
+        path = os.path.join(_base_dir, "assets", "song", "combat", "counter", "dash-attack.wav")
+        try:
+            _counter_sound = pygame.mixer.Sound(path)
+        except Exception:
+            _counter_sound = False
+    return _counter_sound if _counter_sound else None
+
 _judy_projectile_image = None
 _nick_projectile_image = None
 
@@ -160,6 +172,13 @@ class ProjectileSprite(pygame.sprite.Sprite):
                 counter_remaining = getattr(victim, "_counter_remaining", 0)
                 if counter_remaining > 0:
                     victim._counter_remaining = 0
+                    snd = _get_counter_sound()
+                    if snd is not None:
+                        try:
+                            snd.set_volume(0.4)
+                            snd.play()
+                        except Exception:
+                            pass
                     ax, ay = self.owner.rect.centerx, self.owner.rect.centery
                     dx = ax - vx
                     dy = ay - vy

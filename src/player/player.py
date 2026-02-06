@@ -4,13 +4,27 @@ import pygame
 from game.config import JOY_DEADZONE
 from player.stats import Stats
 from combat.hitbox_sprite import HitboxSprite
-from combat.knockback import decay_launch_speed
+from combat.knockback import decay_launch_speed, KnockbackResult
+from combat.attack import HitResult
 
 WALK_ANIM_FRAMES = 8
 SPRITE_HEIGHT = 130
 SPRITE_WIDTH_SCALE = 0.85
 ATTACK_ANIM_DURATION = 24
 ATTACK_ANIM_FRAME_DURATION = 8
+
+_stomp_sound = None
+
+def _get_stomp_sound():
+    global _stomp_sound
+    if _stomp_sound is None:
+        base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        path = os.path.join(base, "assets", "song", "combat", " crushing", "jab-attack.wav")
+        try:
+            _stomp_sound = pygame.mixer.Sound(path)
+        except Exception:
+            _stomp_sound = False
+    return _stomp_sound if _stomp_sound else None
 
 
 def _load_walk_frames(character: str):
@@ -182,6 +196,15 @@ class Player(pygame.sprite.Sprite):
         self._smoke_frames_remaining = 0
         self._smoke_surface = None
         self._smoke_x = self._smoke_y = 0
+        self._down_held = False
+        self._stomp_cooldown = 0
+        self.STOMP_FALL_BOOST = 1.2
+        self.STOMP_SPEED_MIN = 3.0
+        self.STOMP_DAMAGE = 24
+        self.STOMP_LAUNCH_X = 6
+        self.STOMP_LAUNCH_Y = -4
+        self.STOMP_HITSTUN = 20
+        self.STOMP_BOUNCE_Y = -6
 
     def respawn(self):
         self.rect.topleft = self.spawn_pos
@@ -324,21 +347,21 @@ class Player(pygame.sprite.Sprite):
                 self._did_air_jump_this_flight = True
             self._jump_held = jump_held
             self._jump_btn_prev = jump_held
-        
+            self._down_held = down
         # ✅ FALLBACK CLAVIER
         else:
             keys = pygame.key.get_pressed()
-            
+            down_key = keys[self.controls.get("down", pygame.K_s)]
             if keys[self.controls["left"]]:
                 self.speed_x = -move
                 self.facing_right = False
             if keys[self.controls["right"]]:
                 self.speed_x = move
                 self.facing_right = True
-            
-            self.drop_through = keys[self.controls.get("down", pygame.K_s)] and keys[self.controls["jump"]]
+            self.drop_through = down_key and keys[self.controls["jump"]]
             self._jump_held = keys[self.controls["jump"]]
             self._jump_btn_prev = keys[self.controls["jump"]]
+            self._down_held = down_key
 
     def start_attack(self, attack_id: str, hitboxes_group, charge_mult: float = 1.0):
         hb = HitboxSprite(owner=self, attack_id=attack_id, charge_mult=charge_mult)
@@ -460,7 +483,10 @@ class Player(pygame.sprite.Sprite):
         else:
             self.handle_input()
             self.speed_y += self.gravity
-            
+            if not self.on_ground and getattr(self, "_down_held", False):
+                self.speed_y += getattr(self, "STOMP_FALL_BOOST", 1.2)
+            if getattr(self, "_stomp_cooldown", 0) > 0:
+                self._stomp_cooldown -= 1
             # ✅ Jump cut (relâcher saut = moins haut)
             if not self._jump_held and self.speed_y < self.jump_cut_speed:
                 self.speed_y = self.jump_cut_speed
@@ -497,8 +523,38 @@ class Player(pygame.sprite.Sprite):
                 overlap_top = max(0, self.rect.bottom - other.rect.top)
                 overlap_bottom = max(0, other.rect.bottom - self.rect.top)
                 min_overlap = min(overlap_left, overlap_right, overlap_top, overlap_bottom)
-                
-                if min_overlap > 0:
+                # Stomp : on tombe sur l'autre (vitesse vers le bas + touche bas + on est au-dessus)
+                above = self.rect.bottom >= other.rect.top and self.speed_y > 0
+                stomp_ok = (
+                    getattr(self, "_stomp_cooldown", 0) <= 0
+                    and self.speed_y >= getattr(self, "STOMP_SPEED_MIN", 3.0)
+                    and getattr(self, "_down_held", False)
+                    and above
+                    and getattr(other, "respawn_invuln", 0) <= 0
+                )
+                if stomp_ok:
+                    snd = _get_stomp_sound()
+                    if snd is not None:
+                        try:
+                            snd.set_volume(0.4)
+                            snd.play()
+                        except Exception:
+                            pass
+                    vx = getattr(self, "STOMP_LAUNCH_X", 6) * (1 if self.facing_right else -1)
+                    vy = getattr(self, "STOMP_LAUNCH_Y", -4)
+                    dummy_kb = KnockbackResult(0, 0, 0, vx, vy)
+                    stomp_result = HitResult(
+                        getattr(self, "STOMP_DAMAGE", 24),
+                        dummy_kb,
+                        getattr(self, "STOMP_HITSTUN", 20),
+                        False,
+                        vx,
+                        vy,
+                    )
+                    other.receive_hit(stomp_result)
+                    self.speed_y = getattr(self, "STOMP_BOUNCE_Y", -6)
+                    self._stomp_cooldown = 25
+                elif min_overlap > 0:
                     if min_overlap == overlap_left:
                         self.rect.x -= overlap_left
                     elif min_overlap == overlap_right:
