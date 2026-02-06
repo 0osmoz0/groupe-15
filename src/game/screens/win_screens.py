@@ -16,27 +16,11 @@ class NickWinScreen:
                 ctx.running = False
                 return
             if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_ESCAPE:
-                    ctx.running = False
-                    return
-                else:
-                    ctx.game_state = "playing"
-                    ctx.player1.respawn()
-                    ctx.player2.respawn()
-                    ctx.player1.lives = 3
-                    ctx.player2.lives = 3
-                    return
+                ctx.game_state = "main_menu"
+                return
             if event.type == pygame.JOYBUTTONDOWN and event.joy in (0, 1):
-                if event.button == JOY_BTN_START:
-                    ctx.running = False
-                    return
-                else:
-                    ctx.game_state = "playing"
-                    ctx.player1.respawn()
-                    ctx.player2.respawn()
-                    ctx.player1.lives = 3
-                    ctx.player2.lives = 3
-                    return
+                ctx.game_state = "main_menu"
+                return
         if not ctx.running:
             return
         frames = ctx.assets.nick_win_frames
@@ -62,27 +46,11 @@ class JudyWinScreen:
                 ctx.running = False
                 return
             if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_ESCAPE:
-                    ctx.running = False
-                    return
-                else:
-                    ctx.game_state = "playing"
-                    ctx.player1.respawn()
-                    ctx.player2.respawn()
-                    ctx.player1.lives = 3
-                    ctx.player2.lives = 3
-                    return
+                ctx.game_state = "main_menu"
+                return
             if event.type == pygame.JOYBUTTONDOWN and event.joy in (0, 1):
-                if event.button == JOY_BTN_START:
-                    ctx.running = False
-                    return
-                else:
-                    ctx.game_state = "playing"
-                    ctx.player1.respawn()
-                    ctx.player2.respawn()
-                    ctx.player1.lives = 3
-                    ctx.player2.lives = 3
-                    return
+                ctx.game_state = "main_menu"
+                return
         if not ctx.running:
             return
         frames = ctx.assets.judy_win_frames
