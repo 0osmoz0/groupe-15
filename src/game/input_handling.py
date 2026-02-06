@@ -7,16 +7,13 @@ from game.config import (
 
 _last_joystick_count = -1
 _joystick_ever_seen = False
-_frames_n_zero = 0  # nombre de frames consécutives avec get_count() == 0
-FULL_RESCAN_AFTER_FRAMES = 2   # attendre 2 frames à 0 puis rescan à chaque frame
-# Nombre "effectif" de manettes : reste à 2 pendant STICKY_JOY_FRAMES après un passage à 1 (évite de perdre P2 quand get_count() flicker sur macOS/Bluetooth)
+_frames_n_zero = 0
+FULL_RESCAN_AFTER_FRAMES = 2
 _effective_joy_count = 0
 _frames_joy_below_effective = 0
-STICKY_JOY_FRAMES = 90  # ~1.5 s à 60 FPS : on garde 2 manettes pendant ce temps après que get_count() soit repassé à 1
-# État précédent pour le polling (fallback quand les events SDL ne marchent pas sur macOS)
-_poll_axis_prev = {}  # (joy_id, axis) -> value
-_poll_button_prev = {}  # (joy_id, button) -> pressed
-# Compteur de frame global pour logs verbose (incrémenté par main.py à chaque boucle)
+STICKY_JOY_FRAMES = 90
+_poll_axis_prev = {}
+_poll_button_prev = {}
 _debug_joy_global_frame = 0
 
 
@@ -73,7 +70,6 @@ def init_joysticks(player1, player2, force_log=False):
                 print(f"  [Manettes] Joystick({i}).init() erreur: {e}")
     player1.joy_id = 0 if n_effective >= 1 else None
     player2.joy_id = 1 if n_effective >= 2 else None
-    # Synchroniser l'objet joystick avec joy_id (ne créer Joystick(i) que si i < get_count(), sinon segfault macOS)
     n_now = pygame.joystick.get_count()
     for pl in (player1, player2):
         if getattr(pl, "joy_id", None) is None:
@@ -124,7 +120,6 @@ def tick_joystick_rescan(player1, player2):
         if _frames_n_zero >= 2:
             _poll_axis_prev.clear()
             _poll_button_prev.clear()
-        # Rescan à chaque frame quand 0 manette : quit+init + pump pour que SDL réénumère (macOS/Bluetooth)
         if _frames_n_zero >= FULL_RESCAN_AFTER_FRAMES:
             _do_full_joystick_rescan()
             n = pygame.joystick.get_count()
@@ -165,13 +160,12 @@ def get_joystick_poll_events(deadzone: float, confirm_buttons: tuple = (0, 9)):
         for axis in range(min(2, naxes)):
             key = (joy_id, axis)
             val = j.get_axis(axis)
-            # D-pad (hat) en secours si stick neutre
             if abs(val) < 0.5 and j.get_numhats() > 0:
                 hx, hy = j.get_hat(0)
                 if axis == 0 and hx != 0:
                     val = float(hx)
                 elif axis == 1 and hy != 0:
-                    val = -float(hy)  # pygame hat: up=1
+                    val = -float(hy)
             prev = _poll_axis_prev.get(key, 0.0)
             _poll_axis_prev[key] = val
             if abs(val) > deadzone and abs(prev) <= deadzone:

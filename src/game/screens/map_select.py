@@ -6,7 +6,7 @@ from game.input_handling import get_joystick_poll_events, safe_event_get
 
 class MapSelectScreen:
     def __init__(self):
-        self._prev_axis0 = {}  # joy_id -> dernière valeur axe horizontal (debounce)
+        self._prev_axis0 = {}
 
     def run(self, ctx):
         events = safe_event_get()

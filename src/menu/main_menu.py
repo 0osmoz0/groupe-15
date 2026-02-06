@@ -37,26 +37,23 @@ class MainMenu:
         self.joy_confirm_buttons = joy_confirm_buttons
 
         self._cursor = 0
-        # Valeurs précédentes par (joy_id, axis) pour que les deux manettes fonctionnent
-        self._axis_prev: dict = {}  # (joy_id, axis) -> float
+        self._axis_prev: dict = {}
 
         self._font_title = self._create_font(72, bold=True)
         self._font_option = self._create_font(48, bold=True)
         self._font_hint = self._create_font(22, bold=False)
 
-        # Palette moderne : fond sombre, cartes avec ombre, sélection dorée/ambre
-        self._color_rect_selected = (218, 165, 32)    # doré / amber (sélection)
-        self._color_rect_normal = (52, 58, 72)        # slate foncé (non sélectionné)
-        self._color_border_glow = (255, 215, 100)    # bordure or clair
+        self._color_rect_selected = (218, 165, 32)
+        self._color_rect_normal = (52, 58, 72)
+        self._color_border_glow = (255, 215, 100)
         self._color_border_glow_outer = (255, 235, 160)
-        self._color_text = (255, 252, 245)           # blanc cassé
+        self._color_text = (255, 252, 245)
         self._color_text_shadow = (30, 28, 35)
         self._color_hint = (160, 165, 175)
         self._color_bg_fallback = (28, 32, 42)
         self._color_card_shadow = (15, 18, 25)
-        self._color_overlay = (0, 0, 0, 140)          # overlay semi-transparent (alpha pour surface)
+        self._color_overlay = (0, 0, 0, 140)
 
-        # Positionnement : bloc gauche, espacement généreux
         self._menu_margin_left = int(self.screen_width * 0.07)
         self._menu_margin_top = int(self.screen_height * 0.22)
         self._gap = 20
@@ -64,10 +61,8 @@ class MainMenu:
         self._radius_big = 16
         self._radius_small = 12
         self._shadow_offset = 6
-        # Grand rectangle (option sélectionnée en haut)
         self._big_width = int(self.screen_width * 0.42)
         self._big_height = int(self.screen_height * 0.12)
-        # Petits rectangles (grille 2x2)
         self._small_width = (self._big_width - self._gap) // 2
         self._small_height = int(self._big_height * 0.72)
         self._grid_cols = 2
@@ -96,7 +91,6 @@ class MainMenu:
         idx = row * self._grid_cols + col
         if idx < len(self.options):
             return idx
-        # Case vide (ex: (1,1) pour 3 options) : aller au dernier option (ex: (1,0) = 2)
         return min(len(self.options) - 1, (row + 1) * self._grid_cols - 1)
 
     def _move_cursor_grid(self, drow: int, dcol: int) -> None:
@@ -211,7 +205,6 @@ class MainMenu:
         """Dessine le menu : fond, titre, cartes avec ombres et barre d’aide."""
         if self.background is not None:
             screen.blit(self.background, (0, 0))
-            # Overlay léger en bas à gauche pour liser le bloc menu
             overlay = pygame.Surface((self._big_width + self._menu_margin_left + 100, self.screen_height))
             overlay.set_alpha(70)
             overlay.fill((0, 0, 0))
@@ -220,7 +213,6 @@ class MainMenu:
             screen.fill(self._color_bg_fallback)
 
         title_y = self._menu_margin_top - 56
-        # Titre : image ou texte avec ombre
         if self.title_image is not None:
             title_rect = self.title_image.get_rect(midleft=(self._menu_margin_left, title_y))
             shadow_rect = title_rect.move(3, 3)
@@ -236,7 +228,6 @@ class MainMenu:
             screen.blit(title_shadow, tr.move(2, 2))
             screen.blit(title_surf, tr)
 
-        # Grande carte (option sélectionnée)
         big_rect = pygame.Rect(
             self._menu_margin_left,
             self._menu_margin_top,
@@ -257,18 +248,15 @@ class MainMenu:
         if bg_surface is not None:
             bg_scaled = pygame.transform.smoothscale(bg_surface, (self._big_width, self._big_height))
             screen.blit(bg_scaled, big_rect.topleft)
-            # Voile sombre pour garder le texte lisible
             overlay_card = pygame.Surface((self._big_width, self._big_height))
             overlay_card.set_alpha(75)
             overlay_card.fill((0, 0, 0))
             screen.blit(overlay_card, big_rect.topleft)
-        # Bordure de sélection
         for border_w, color in [(self._rect_border + 2, self._color_border_glow_outer), (self._rect_border, self._color_border_glow)]:
             outer = big_rect.inflate(border_w * 2, border_w * 2)
             pygame.draw.rect(screen, color, outer, width=border_w, border_radius=self._radius_big + 2)
         self._draw_text_with_shadow(screen, selected_label, self._font_option, big_rect.center)
 
-        # Grille 2x2 de cartes
         grid_start_y = self._menu_margin_top + self._big_height + self._gap
         font_small = self._create_font(36, bold=True)
         for i in range(len(self.options)):
@@ -290,7 +278,6 @@ class MainMenu:
             opt_rect = opt_surf.get_rect(center=small_rect.center)
             screen.blit(opt_surf, opt_rect)
 
-        # Barre d’aide en bas : discrète, coins arrondis
         bar_height = 36
         bar_rect = pygame.Rect(0, self.screen_height - bar_height, self.screen_width, bar_height)
         pygame.draw.rect(screen, (38, 42, 52), bar_rect)

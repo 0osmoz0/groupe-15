@@ -27,13 +27,13 @@ def _video_path_for(ctx, filename):
 
 class JudyNickIntroVideoScreen:
     """Joue la vidéo d'intro avec OpenCV (1.mp4 si Judy P1, 1_2.mp4 si Nick P1), puis enchaîne sur le jeu."""
-    VIDEO_SPEED = 2.5  # vitesse de lecture (x2.5)
+    VIDEO_SPEED = 2.5
 
     def __init__(self):
         self._cap = None
         self._video_path = None
         self._cv2 = None
-        self._speed_phase = 0  # pour alterner 2x/3x et obtenir 2.5x en moyenne
+        self._speed_phase = 0
         self._video_start_ticks = None
         self._sfx_played = False
         self._sfx_sound = None
@@ -78,7 +78,6 @@ class JudyNickIntroVideoScreen:
                 return
             self._video_start_ticks = pygame.time.get_ticks()
 
-        # SFX à 2,5 s (special-attack_1.wav)
         if not self._sfx_played and self._video_start_ticks is not None:
             elapsed_ms = pygame.time.get_ticks() - self._video_start_ticks
             if elapsed_ms >= 1500:
@@ -111,7 +110,6 @@ class JudyNickIntroVideoScreen:
                 self._go_versus(ctx)
                 return
 
-        # Vitesse x2.5 : on avance de 2 ou 3 frames vidéo par image (moyenne 2.5)
         skip = 2 if self._speed_phase == 0 else 3
         self._speed_phase = 1 - self._speed_phase
         for _ in range(skip):
@@ -145,7 +143,6 @@ class JudyNickIntroVideoScreen:
             self._cap = None
 
     def _go_versus(self, ctx):
-        # Enchaînement direct vers P1 confirm (pas d’écran versus ni Entrée)
         if getattr(ctx, "menu_music_playing", False):
             try:
                 pygame.mixer.music.stop()

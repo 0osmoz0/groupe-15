@@ -18,7 +18,7 @@ def _render_percent_text(font, percent: int, lives: int, player_color):
     outline = font.render(text, True, (0, 0, 0))
     w, h = img.get_size()
     out_surf = pygame.Surface((w + 4, h + 4))
-    out_surf.set_colorkey((1, 0, 0))  # magenta comme colorkey pour transparence
+    out_surf.set_colorkey((1, 0, 0))
     out_surf.fill((1, 0, 0))
     for dx in (-2, -1, 0, 1, 2):
         for dy in (-2, -1, 0, 1, 2):

@@ -100,6 +100,8 @@ class HitboxSprite(pygame.sprite.Sprite):
                 continue
             if getattr(victim, "respawn_invuln", 0) > 0:
                 continue
+            if getattr(victim, "cheat_invincible_until", 0) > pygame.time.get_ticks():
+                continue
             vx, vy = victim.rect.centerx, victim.rect.centery
 
             for hb in active:
@@ -123,6 +125,8 @@ class HitboxSprite(pygame.sprite.Sprite):
                 attacker_percent = getattr(self.owner.stats, "percent", 0)
                 victim_gravity = getattr(victim, "gravity_for_kb", 0.05)
                 stale_mult = self.owner.get_stale_damage_mult(self.attack_id) if hasattr(self.owner, "get_stale_damage_mult") else 1.0
+                if getattr(self.owner, "cheat_super_damage_until", 0) > pygame.time.get_ticks():
+                    stale_mult *= 5
                 di_angle = victim.get_di_angle_rad() if hasattr(victim, "get_di_angle_rad") else None
                 result = resolve_hit(
                     hb,

@@ -60,8 +60,6 @@ class CharacterSelectScreen:
             ctx.assets.background = ctx.assets.map_surfaces[ctx.selected_map_index].copy()
             ctx.player1.set_character(ctx.p1_character_choice)
             ctx.player2.set_character(ctx.p2_character_choice)
-            # La musique du menu continue pendant les vidéos d'intro (arrêtée à la fin de l'intro)
-            # Vidéo d'intro après sélection : 1.mp4 si Judy P1, 1_2.mp4 si Nick P1
             if ctx.p1_character_choice == "judy" and ctx.p2_character_choice == "nick":
                 ctx.intro_video_filename = "1.mp4"
                 ctx.game_state = "intro_video"

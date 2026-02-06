@@ -1,4 +1,3 @@
-# Écrans de jeu (map select, character select, countdown, GIF, win, playing)
 from game.screens.map_select import MapSelectScreen
 from game.screens.character_select import CharacterSelectScreen
 from game.screens.judy_nick_intro_video import JudyNickIntroVideoScreen

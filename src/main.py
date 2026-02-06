@@ -29,7 +29,6 @@ from game.screens import (
     PlayingScreen,
 )
 
-# --- Init Pygame ---
 pygame.init()
 pygame.font.init()
 pygame.joystick.init()
@@ -38,7 +37,6 @@ try:
 except Exception:
     pass
 
-# Ne pas créer d'objet Joystick ici : évite segfault macOS (double init). init_joysticks() s'en charge.
 time.sleep(0.3)
 print(f"🎮 Manettes détectées : {pygame.joystick.get_count()}")
 
@@ -49,12 +47,10 @@ screen_w, screen_h = screen.get_size()
 world_w, world_h = screen_w * 2, screen_h * 2
 base_dir = os.path.dirname(os.path.abspath(__file__))
 
-# --- Contexte (assets + état) ---
 ctx = GameContext(screen, clock, base_dir, (screen_w, screen_h), (world_w, world_h))
 ctx.fullscreen_mode = fullscreen_mode
 ctx.window_size = (WIDTH, HEIGHT)
 
-# --- Joueurs ---
 player1 = Player(
     start_pos=(world_w // 2 - 200, world_h // 2),
     color=(255, 0, 0),
@@ -69,7 +65,7 @@ player1 = Player(
         "counter": pygame.K_h
     },
     screen_size=(world_w, world_h),
-    joystick_id=0  # ✅ MANETTE 1
+    joystick_id=0
 )
 player2 = Player(
     start_pos=(world_w // 2 + 200, world_h // 2),
@@ -86,7 +82,7 @@ player2 = Player(
     },
     screen_size=(world_w, world_h),
     character="nick",
-    joystick_id=1  # ✅ MANETTE 2
+    joystick_id=1
 )
 
 ctx.player1 = player1
@@ -94,7 +90,6 @@ ctx.player2 = player2
 ctx.players = pygame.sprite.Group(player1, player2)
 ctx.hitboxes = pygame.sprite.Group()
 
-# --- Plateformes ---
 a = ctx.assets
 wc_x, wc_y = world_w // 2, world_h // 2
 platforms = pygame.sprite.Group()
@@ -122,10 +117,8 @@ platforms.add(
 )
 ctx.platforms = platforms
 
-# ✅ ASSOCIER LES MANETTES AUX JOUEURS
 init_joysticks(player1, player2)
 
-# --- Menus ---
 main_menu = MainMenu(
     screen_w, screen_h,
     ("VERSUS", "PARAMETRES", "QUITTER"),
@@ -152,7 +145,6 @@ controls_menu = ControlsMenu(
     joy_confirm_buttons=(JOY_BTN_JUMP, JOY_BTN_START)
 )
 
-# --- Écrans de jeu ---
 map_select_screen = MapSelectScreen()
 character_select_screen = CharacterSelectScreen()
 judy_nick_intro_video_screen = JudyNickIntroVideoScreen()
@@ -166,9 +158,7 @@ nick_win_screen = NickWinScreen()
 judy_win_screen = JudyWinScreen()
 playing_screen = PlayingScreen()
 
-# --- Boucle principale ---
 while ctx.running:
-    # ✅ RESCANNER LES MANETTES (pour hotplug)
     tick_joystick_rescan(player1, player2)
     
     if ctx.game_state == "main_menu":
@@ -214,12 +204,11 @@ while ctx.running:
                 ctx.game_state = "map_select"
                 ctx.map_select_cursor = 0
                 ctx.selected_map_index = 0
-                ctx.map_select_ignore_confirm_frame = True  # évite validation manette résiduelle (menu s'affiche)
+                ctx.map_select_ignore_confirm_frame = True
                 ctx.char_select_phase = "p1"
                 ctx.char_select_cursor = 0
                 ctx.p1_character_choice = None
                 ctx.p2_character_choice = None
-                # Réinitialiser la partie : vies, positions, dégâts, projectiles (évite de revoir l’ancien vainqueur)
                 player1.lives = 3
                 player2.lives = 3
                 player1.respawn()
@@ -337,7 +326,6 @@ while ctx.running:
                 ctx.enter_gif_phase = "playing"
                 ctx.wait_after_enter_gif_timer_ms = 0
             
-            # ✅ GÉRER LES MANETTES SUR L'ÉCRAN TITRE
             if event.type == pygame.JOYBUTTONDOWN:
                 if event.button == JOY_BTN_JUMP:
                     ctx.game_state = "versus_gif"
@@ -362,7 +350,6 @@ while ctx.running:
             clock.tick(60)
             continue
 
-    # ✅ DÉLÉGATION AUX ÉCRANS
     if ctx.game_state == "map_select":
         map_select_screen.run(ctx)
         continue

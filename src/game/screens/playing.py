@@ -18,7 +18,6 @@ from player.player import (
 
 class PlayingScreen:
     def run(self, ctx):
-        # Musique de combat (Sonic Unleashed - Endless Possibility)
         if getattr(ctx.assets, "combat_music_loaded", False) and not getattr(ctx, "combat_music_playing", False):
             try:
                 if getattr(ctx, "menu_music_playing", False):
@@ -30,7 +29,6 @@ class PlayingScreen:
                 ctx.combat_music_playing = True
             except Exception:
                 pass
-        # Conditions de victoire : selon le gagnant (P1 ou P2) et son personnage
         def _start_win_music():
             try:
                 pygame.mixer.music.stop()
@@ -42,7 +40,6 @@ class PlayingScreen:
                 pass
 
         if ctx.player1.lives <= 0 and ctx.player2.lives > 0:
-            # P2 gagne → écran selon le perso de P2
             winner_nick = getattr(ctx.player2, "character", None) == "nick"
             ctx.game_state = "nick_wins" if winner_nick else "judy_wins"
             ctx.nick_win_frame_index = 0
@@ -73,7 +70,6 @@ class PlayingScreen:
             ctx.combat_music_playing = False
             return
         if ctx.player2.lives <= 0 and ctx.player1.lives > 0:
-            # P1 gagne → écran selon le perso de P1
             winner_nick = getattr(ctx.player1, "character", None) == "nick"
             ctx.game_state = "nick_wins" if winner_nick else "judy_wins"
             ctx.nick_win_frame_index = 0
@@ -106,11 +102,9 @@ class PlayingScreen:
 
         events = safe_event_get()
         n_joy_raw = pygame.joystick.get_count()
-        n_joy = get_effective_joy_count()  # collant à 2 pour ne pas perdre P2 quand get_count() flicker
-        # Toujours réassigner P1/P2 aux manettes (manette 0 = P1, manette 1 = P2)
+        n_joy = get_effective_joy_count()
         ctx.player1.joy_id = 0 if n_joy >= 1 else None
         ctx.player2.joy_id = 1 if n_joy >= 2 else None
-        # Synchroniser joystick : ne créer qu'une seule fois (évite segfault macOS si on recrée à chaque frame)
         for pl in (ctx.player1, ctx.player2):
             if getattr(pl, "joy_id", None) is None or pl.joy_id >= n_joy_raw:
                 pl.joystick = None
@@ -120,7 +114,6 @@ class PlayingScreen:
                     pl.joystick.init()
                 except Exception:
                     pl.joystick = None
-        # Forcer l'init des manettes physiquement présentes (on peut avoir effective=2 alors que raw=1)
         for jid in range(min(2, n_joy_raw)):
             try:
                 pygame.joystick.Joystick(jid).init()
@@ -129,7 +122,7 @@ class PlayingScreen:
         if n_joy_raw > 0:
             events.extend(get_joystick_poll_events(
                 JOY_DEADZONE,
-                (JOY_BTN_JUMP, JOY_BTN_ATTACK, JOY_BTN_SPECIAL, JOY_BTN_COUNTER, JOY_BTN_COUNTER_ALT, JOY_BTN_GRAB),  # 5=L1, 7=L2 (parade)
+                (JOY_BTN_JUMP, JOY_BTN_ATTACK, JOY_BTN_SPECIAL, JOY_BTN_COUNTER, JOY_BTN_COUNTER_ALT, JOY_BTN_GRAB),
             ))
         if DEBUG_JOYSTICK_VERBOSE and _debug_joy_global_frame > 0 and _debug_joy_global_frame % DEBUG_JOYSTICK_VERBOSE_INTERVAL == 0:
             print(f"[Manette VERBOSE] frame={_debug_joy_global_frame} Playing: get_count()={n_joy} P1.joy_id={ctx.player1.joy_id} P2.joy_id={ctx.player2.joy_id} nb_events_manette={sum(1 for e in events if e.type in (pygame.JOYAXISMOTION, pygame.JOYBUTTONDOWN))}")
@@ -137,7 +130,6 @@ class PlayingScreen:
             if event.type == pygame.QUIT:
                 ctx.running = False
                 return
-            # Menu pause : Échap ou Start pour ouvrir ; en pause on ne traite que le menu
             if ctx.paused:
                 if event.type == pygame.KEYDOWN:
                     if event.key in (pygame.K_ESCAPE, pygame.K_p):
@@ -174,7 +166,6 @@ class PlayingScreen:
                             ctx.game_state = "main_menu"
                             return
                 continue
-            # En jeu : Échap ou Start ouvre le menu pause
             if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                 ctx.paused = True
                 ctx.pause_menu_cursor = 0
@@ -184,6 +175,24 @@ class PlayingScreen:
                 ctx.pause_menu_cursor = 0
                 continue
             if event.type == pygame.KEYDOWN:
+                cheat_keys = (pygame.K_i, pygame.K_n, pygame.K_v, pygame.K_d, pygame.K_m, pygame.K_g)
+                if event.key in cheat_keys:
+                    buf = getattr(ctx, "_cheat_keys", [])
+                    t = pygame.time.get_ticks()
+                    if t - getattr(ctx, "_cheat_last_time", 0) > 2000:
+                        buf = []
+                    ctx._cheat_last_time = t
+                    buf.append(event.key)
+                    if len(buf) > 4:
+                        buf.pop(0)
+                    ctx._cheat_keys = buf
+                    if tuple(buf) == (pygame.K_i, pygame.K_n, pygame.K_v):
+                        ctx.player1.cheat_invincible_until = t + 10000
+                        ctx._cheat_keys = []
+                    elif tuple(buf) == (pygame.K_d, pygame.K_m, pygame.K_g):
+                        ctx.player1.cheat_super_damage_until = t + 10000
+                        ctx._cheat_keys = []
+                    continue
                 if event.key == ctx.player1.controls["jump"]:
                     ctx.player1.jump()
                 if event.key == ctx.player2.controls["jump"]:
@@ -226,7 +235,6 @@ class PlayingScreen:
                 if DEBUG_JOYSTICK or DEBUG_JOYSTICK_VERBOSE:
                     print(f"[Manette EVENT] JOYBUTTONDOWN joy_id={event.joy} button={event.button}")
                 joy_id, btn = event.joy, event.button
-                # Manette 0 = P1, Manette 1 = P2 (quand n_joy >= 2)
                 if joy_id == 0:
                     if btn == JOY_BTN_JUMP: ctx.player1.jump()
                     elif btn == JOY_BTN_ATTACK and ctx.player1.lives > 0:
@@ -262,7 +270,6 @@ class PlayingScreen:
                                 ctx.player2._distance_burst_remaining = DISTANCE_ATTACK_BURST_SIZE * DISTANCE_ATTACK_NUM_BURSTS - 1
                                 ctx.player2._distance_burst_timer = DISTANCE_ATTACK_BURST_DELAY
 
-        # Si en pause : dessiner la scène figée + overlay + menu pause puis sortir (pas de mise à jour)
         if ctx.paused:
             ctx.world_surface.blit(ctx.assets.background, (0, 0))
             ctx.hitboxes.draw(ctx.world_surface)
@@ -284,12 +291,10 @@ class PlayingScreen:
             draw_percent_hud(ctx.screen, ctx.player1, margin, percent_y, ctx.assets, align_left=True)
             draw_percent_hud(ctx.screen, ctx.player2, ctx.screen_w - margin, percent_y, ctx.assets, align_left=False)
             draw_portraits(ctx.screen, ctx.assets, ctx.screen_w, hud_y, ctx.player1, ctx.player2)
-            # Overlay semi-transparent
             overlay = pygame.Surface((ctx.screen_w, ctx.screen_h))
             overlay.set_alpha(140)
             overlay.fill((0, 0, 0))
             ctx.screen.blit(overlay, (0, 0))
-            # Panel pause
             panel_w, panel_h = 340, 200
             panel_rect = pygame.Rect(ctx.screen_w // 2 - panel_w // 2, ctx.screen_h // 2 - panel_h // 2, panel_w, panel_h)
             pygame.draw.rect(ctx.screen, (45, 50, 62), panel_rect, border_radius=14)
@@ -313,7 +318,6 @@ class PlayingScreen:
             ctx.clock.tick(60)
             return
 
-        # Rafale : décrémenter le timer puis tirer les projectiles 2 à 3 après le délai ; cooldown entre rafales
         for player in (ctx.player1, ctx.player2):
             cooldown = getattr(player, "_distance_attack_cooldown_remaining", 0)
             if cooldown > 0:
@@ -329,7 +333,6 @@ class PlayingScreen:
 
         ctx.player1.handle_input()
         ctx.player2.handle_input()
-        # Secours double saut manette : si en l'air + bouton saut tenu et pas encore utilisé ce vol
         for pl in (ctx.player1, ctx.player2):
             if getattr(pl, "joystick", None) and not pl.on_ground and pl.jump_count < pl.jump_max:
                 joy_in = pl._get_joy_input()
@@ -355,7 +358,6 @@ class PlayingScreen:
         ctx.hitboxes.draw(ctx.world_surface)
         ctx.platforms.draw(ctx.world_surface)
         ctx.players.draw(ctx.world_surface)
-        # Fumée d'impact aléatoire (smog) quand un joueur reçoit un coup — visible ~12 frames
         smog_list = getattr(ctx.assets, "smog_surfaces", [])
         valid_smog = [s for s in smog_list if s is not None] if smog_list else []
         for pl in (ctx.player1, ctx.player2):

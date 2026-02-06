@@ -174,8 +174,6 @@ class GameAssets:
             "Fanfare du Héros.mp3"
         )
         self.win_music_loaded = os.path.isfile(self.win_music_path)
-        # Sons de victoire Judy en WAV (pygame.mixer.Sound ne gère pas le MP3)
-        # Utiliser scripts/convert_judy_win_to_wav.sh pour générer les .wav depuis les .mp3
         self.judy_win_sound_paths = [
             os.path.join(self.base_dir, "assets", "song", "JudyWin", "winJudy.wav"),
             os.path.join(self.base_dir, "assets", "song", "JudyWin", "WinJudy3.wav"),
@@ -183,7 +181,6 @@ class GameAssets:
         self.judy_win_sounds_loaded = [
             os.path.isfile(p) for p in self.judy_win_sound_paths
         ]
-        # Son de victoire Nick (en plus de la fanfare) — WAV recommandé (Sinon MP3 peut ne pas marcher avec Sound())
         self.nick_win_sound_path_wav = os.path.join(self.base_dir, "assets", "song", "nick win", "nick_win.wav")
         self.nick_win_sound_path_mp3 = os.path.join(
             self.base_dir, "assets", "song", "nick win",

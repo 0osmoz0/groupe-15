@@ -25,8 +25,8 @@ class SettingsMenu:
         self.joy_confirm_buttons = joy_confirm_buttons
 
         self._cursor = 0
-        self._axis1_prev = {0: 0.0, 1: 0.0}  # par joy_id pour les deux manettes
-        self._option_count = 3  # Plein écran, Contrôles, Retour
+        self._axis1_prev = {0: 0.0, 1: 0.0}
+        self._option_count = 3
 
         self._font_title = self._create_font(80, bold=True)
         self._font_option = self._create_font(56, bold=True)

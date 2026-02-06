@@ -7,7 +7,6 @@ import pygame
 from game.input_handling import get_poll_axis
 
 
-# Ordre et libellés des actions
 CONTROL_KEYS_ORDER = (
     "left",
     "right",
@@ -56,10 +55,10 @@ class ControlsMenu:
         self.joy_deadzone = joy_deadzone
         self.joy_confirm_buttons = joy_confirm_buttons
 
-        self._step = "player"  # "player" | "action" | "listening"
+        self._step = "player"
         self._cursor = 0
-        self._player_index = 0  # 0 = P1, 1 = P2
-        self._axis1_prev = {0: 0.0, 1: 0.0}  # par joy_id pour les deux manettes
+        self._player_index = 0
+        self._axis1_prev = {0: 0.0, 1: 0.0}
         self._listening_control: Optional[str] = None
 
         self._font_title = self._create_font(64, bold=True)
@@ -167,7 +166,6 @@ class ControlsMenu:
             else:
                 return "back"
             return None
-        # step == "action"
         entries = self._action_entries()
         key_or_none, _ = entries[self._cursor]
         if key_or_none is None:

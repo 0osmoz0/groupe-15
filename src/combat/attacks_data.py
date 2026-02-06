@@ -20,7 +20,6 @@ ANGLE_DIAG_DOWN = 315
 
 
 def _jab_hitboxes() -> list[Hitbox]:
-    # Grande hitbox devant le perso pour toucher l’adversaire (F = attaque)
     return [
         Hitbox(
             frame_start=0, frame_end=14,
@@ -201,7 +200,6 @@ def _down_aerial_hitbox() -> list[Hitbox]:
     ]
 
 
-# --- Coups spéciaux (B) ---
 def _neutral_special_hitbox() -> list[Hitbox]:
     return []
 
@@ -245,9 +243,7 @@ def _down_special_hitbox() -> list[Hitbox]:
     ]
 
 
-# --- Grab et throws ---
 def _grab_hitbox() -> list[Hitbox]:
-    # Grande hitbox devant pour que le grab touche (G = grab)
     return [
         Hitbox(
             frame_start=0, frame_end=22,

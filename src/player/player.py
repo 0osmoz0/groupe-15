@@ -98,10 +98,10 @@ def _load_counter_frame(character: str):
 
 
 DISTANCE_ATTACK_DURATION = 28
-DISTANCE_ATTACK_COOLDOWN_FRAMES = 90  # délai (frames) entre chaque rafale de 3 pour éviter le spam
-DISTANCE_ATTACK_BURST_SIZE = 3        # 3 projectiles par rafale (délai entre chaque tir)
-DISTANCE_ATTACK_NUM_BURSTS = 1        # 1 rafale de 3 = 3 tirs au total
-DISTANCE_ATTACK_BURST_DELAY = 8       # frames entre chaque tir
+DISTANCE_ATTACK_COOLDOWN_FRAMES = 90
+DISTANCE_ATTACK_BURST_SIZE = 3
+DISTANCE_ATTACK_NUM_BURSTS = 1
+DISTANCE_ATTACK_BURST_DELAY = 8
 COUNTER_DURATION = 40
 
 
@@ -126,11 +126,9 @@ class Player(pygame.sprite.Sprite):
         self.color = color
         self.character = character
 
-        # Manette : id stocké, objet Joystick assigné plus tard par init_joysticks() (évite segfault macOS)
         self.joystick_id = joystick_id
         self.joystick = None
 
-        # Charger sprites
         if self.character not in Player._walk_frames_cache:
             Player._walk_frames_cache[self.character] = _load_walk_frames(self.character)
         if self.character not in Player._attack_frames_cache:
@@ -162,7 +160,7 @@ class Player(pygame.sprite.Sprite):
         self.drop_through = False
 
         self.controls = controls
-        self.joy_id = joystick_id  # Compatibilité ancien code
+        self.joy_id = joystick_id
         
         self.speed_x = 0
         self.speed_y = 0
@@ -177,8 +175,8 @@ class Player(pygame.sprite.Sprite):
         self.coyote_frames = 0
         self.jump_buffer_frames = 0
         self._jump_held = False
-        self._did_air_jump_this_flight = False  # double saut manette (1 saut en l'air par vol)
-        self._jump_btn_prev = False  # état précédent du bouton saut (détection "just pressed")
+        self._did_air_jump_this_flight = False
+        self._jump_btn_prev = False
 
         self.stats = Stats(weight=1.0)
         self.lives = 3
@@ -242,9 +240,7 @@ class Player(pygame.sprite.Sprite):
 
     def _get_joy_input(self):
         """✅ CORRIGÉ : Retourne (left, right, up, down, jump_held) depuis la manette si connectée."""
-        # ✅ Vérifier si la manette existe
         if self.joystick is None:
-            # Tenter de la réinitialiser si elle a été déconnectée
             if self.joystick_id is not None and self.joystick_id < pygame.joystick.get_count():
                 try:
                     self.joystick = pygame.joystick.Joystick(self.joystick_id)
@@ -257,7 +253,6 @@ class Player(pygame.sprite.Sprite):
         try:
             dead = JOY_DEADZONE
 
-            # Axes analogiques
             ax0 = self.joystick.get_axis(0) if self.joystick.get_numaxes() > 0 else 0.0
             ax1 = self.joystick.get_axis(1) if self.joystick.get_numaxes() > 1 else 0.0
 
@@ -266,7 +261,6 @@ class Player(pygame.sprite.Sprite):
             up = ax1 < -dead
             down = ax1 > dead
             
-            # D-Pad (croix directionnelle)
             if self.joystick.get_numhats() > 0:
                 hx, hy = self.joystick.get_hat(0)
                 if hx < 0:
@@ -278,7 +272,6 @@ class Player(pygame.sprite.Sprite):
                 if hy < 0:
                     down = True
             
-            # Bouton saut (A sur Xbox, Croix sur PS)
             jump_held = self.joystick.get_button(0) if self.joystick.get_numbuttons() > 0 else False
             
             return (left, right, up, down, jump_held)
@@ -327,7 +320,6 @@ class Player(pygame.sprite.Sprite):
         self.speed_x = 0
         move = self.move_speed if self.on_ground else self.move_speed * self.air_move_mult
 
-        # ✅ PRIORITÉ MANETTE
         joy_in = self._get_joy_input()
         if joy_in is not None:
             left, right, up, down, jump_held = joy_in
@@ -340,7 +332,6 @@ class Player(pygame.sprite.Sprite):
                 self.facing_right = True
             
             self.drop_through = down and jump_held
-            # Double saut manette : même logique que clavier = 2 appuis distincts (pas en restant appuyé)
             jump_just_pressed = jump_held and not getattr(self, "_jump_btn_prev", False)
             if not self.on_ground and self.jump_count < self.jump_max and not self._did_air_jump_this_flight and jump_just_pressed:
                 self.jump()
@@ -348,7 +339,6 @@ class Player(pygame.sprite.Sprite):
             self._jump_held = jump_held
             self._jump_btn_prev = jump_held
             self._down_held = down
-        # ✅ FALLBACK CLAVIER
         else:
             keys = pygame.key.get_pressed()
             down_key = keys[self.controls.get("down", pygame.K_s)]
@@ -450,6 +440,8 @@ class Player(pygame.sprite.Sprite):
     def receive_hit(self, hit_result):
         if self.respawn_invuln > 0:
             return
+        if getattr(self, "cheat_invincible_until", 0) > pygame.time.get_ticks():
+            return
         self._show_smoke = True
         self.stats.take_damage(hit_result.damage_dealt)
         self.speed_x = hit_result.velocity_x * self.KNOCKBACK_SCALE
@@ -487,14 +479,12 @@ class Player(pygame.sprite.Sprite):
                 self.speed_y += getattr(self, "STOMP_FALL_BOOST", 1.2)
             if getattr(self, "_stomp_cooldown", 0) > 0:
                 self._stomp_cooldown -= 1
-            # ✅ Jump cut (relâcher saut = moins haut)
             if not self._jump_held and self.speed_y < self.jump_cut_speed:
                 self.speed_y = self.jump_cut_speed
 
         self.rect.x += int(self.speed_x)
         self.rect.y += int(self.speed_y)
 
-        # Collisions avec plateformes et autres joueurs
         others = list(platforms)
         for player in pygame.sprite.Group():
             if hasattr(player, 'lives') and player != self:
@@ -523,7 +513,6 @@ class Player(pygame.sprite.Sprite):
                 overlap_top = max(0, self.rect.bottom - other.rect.top)
                 overlap_bottom = max(0, other.rect.bottom - self.rect.top)
                 min_overlap = min(overlap_left, overlap_right, overlap_top, overlap_bottom)
-                # Stomp : on tombe sur l'autre (vitesse vers le bas + touche bas + on est au-dessus)
                 above = self.rect.bottom >= other.rect.top and self.speed_y > 0
                 stomp_ok = (
                     getattr(self, "_stomp_cooldown", 0) <= 0
@@ -543,8 +532,11 @@ class Player(pygame.sprite.Sprite):
                     vx = getattr(self, "STOMP_LAUNCH_X", 6) * (1 if self.facing_right else -1)
                     vy = getattr(self, "STOMP_LAUNCH_Y", -4)
                     dummy_kb = KnockbackResult(0, 0, 0, vx, vy)
+                    stomp_dmg = getattr(self, "STOMP_DAMAGE", 24)
+                    if getattr(self, "cheat_super_damage_until", 0) > pygame.time.get_ticks():
+                        stomp_dmg *= 5
                     stomp_result = HitResult(
-                        getattr(self, "STOMP_DAMAGE", 24),
+                        stomp_dmg,
                         dummy_kb,
                         getattr(self, "STOMP_HITSTUN", 20),
                         False,
@@ -588,7 +580,6 @@ class Player(pygame.sprite.Sprite):
                     self.rect.top = other.rect.bottom
                     self.speed_y = 0
         
-        # Crouch
         if self.on_ground:
             joy_in = self._get_joy_input()
             down_pressed = (joy_in[3] if joy_in is not None else False) or (
@@ -597,7 +588,6 @@ class Player(pygame.sprite.Sprite):
             if down_pressed:
                 self.crouching = True
 
-        # Coyote time + jump buffer
         if not self.on_ground:
             if prev_on_ground:
                 self.coyote_frames = self.COYOTE_FRAMES
@@ -616,15 +606,17 @@ class Player(pygame.sprite.Sprite):
 
         self._update_walk_animation()
 
-        # Blast zones (sortie d'écran = perte de vie)
         if (
             self.rect.right < -self.BLAST_MARGIN
             or self.rect.left > self.screen_width + self.BLAST_MARGIN
             or self.rect.bottom < -self.BLAST_MARGIN
             or self.rect.top > self.screen_height + self.BLAST_MARGIN
         ):
-            self.lives -= 1
-            if self.lives > 0:
+            if getattr(self, "cheat_invincible_until", 0) > pygame.time.get_ticks():
                 self.respawn()
             else:
-                self.rect.center = (-999, -999)
+                self.lives -= 1
+                if self.lives > 0:
+                    self.respawn()
+                else:
+                    self.rect.center = (-999, -999)
