@@ -46,6 +46,10 @@ class GameContext:
         self.characters = ("judy", "nick")
         self.character_labels = ("Judy Hopps", "Nick Wilde")
 
+        # Pause (en jeu)
+        self.paused = False
+        self.pause_menu_cursor = 0  # 0 = Reprendre, 1 = Quitter la partie
+
         # Countdown
         self.countdown_step = 0
         self.countdown_timer_ms = 0

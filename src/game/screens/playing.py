@@ -2,7 +2,7 @@
 import random
 import pygame
 from game.config import (
-    CAMERA_LERP, JOY_DEADZONE, JOY_BTN_JUMP, JOY_BTN_ATTACK, JOY_BTN_GRAB, JOY_BTN_COUNTER, JOY_BTN_COUNTER_ALT, JOY_BTN_SPECIAL,
+    CAMERA_LERP, JOY_DEADZONE, JOY_BTN_JUMP, JOY_BTN_ATTACK, JOY_BTN_GRAB, JOY_BTN_COUNTER, JOY_BTN_COUNTER_ALT, JOY_BTN_SPECIAL, JOY_BTN_START,
     DEBUG_JOYSTICK, DEBUG_JOYSTICK_VERBOSE, DEBUG_JOYSTICK_VERBOSE_INTERVAL,
 )
 from game.hud import draw_player_ping, draw_portraits, draw_percent_hud
@@ -137,6 +137,52 @@ class PlayingScreen:
             if event.type == pygame.QUIT:
                 ctx.running = False
                 return
+            # Menu pause : Échap ou Start pour ouvrir ; en pause on ne traite que le menu
+            if ctx.paused:
+                if event.type == pygame.KEYDOWN:
+                    if event.key in (pygame.K_ESCAPE, pygame.K_p):
+                        ctx.paused = False
+                    elif event.key in (pygame.K_UP, pygame.K_w):
+                        ctx.pause_menu_cursor = 0
+                    elif event.key in (pygame.K_DOWN, pygame.K_s):
+                        ctx.pause_menu_cursor = 1
+                    elif event.key in (pygame.K_RETURN, pygame.K_SPACE):
+                        if ctx.pause_menu_cursor == 0:
+                            ctx.paused = False
+                        else:
+                            ctx.paused = False
+                            ctx.game_state = "main_menu"
+                            return
+                if event.type == pygame.JOYAXISMOTION and event.joy in (0, 1) and event.axis == 1:
+                    ax = event.value
+                    prev = getattr(ctx, "_pause_axis1_prev", {}).get(event.joy, 0.0)
+                    if prev >= -JOY_DEADZONE and ax < -JOY_DEADZONE:
+                        ctx.pause_menu_cursor = 0
+                    elif prev <= JOY_DEADZONE and ax > JOY_DEADZONE:
+                        ctx.pause_menu_cursor = 1
+                    if not hasattr(ctx, "_pause_axis1_prev"):
+                        ctx._pause_axis1_prev = {}
+                    ctx._pause_axis1_prev[event.joy] = ax
+                if event.type == pygame.JOYBUTTONDOWN and event.joy in (0, 1):
+                    if event.button == JOY_BTN_START:
+                        ctx.paused = False
+                    elif event.button == JOY_BTN_JUMP:
+                        if ctx.pause_menu_cursor == 0:
+                            ctx.paused = False
+                        else:
+                            ctx.paused = False
+                            ctx.game_state = "main_menu"
+                            return
+                continue
+            # En jeu : Échap ou Start ouvre le menu pause
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                ctx.paused = True
+                ctx.pause_menu_cursor = 0
+                continue
+            if event.type == pygame.JOYBUTTONDOWN and event.joy in (0, 1) and event.button == JOY_BTN_START:
+                ctx.paused = True
+                ctx.pause_menu_cursor = 0
+                continue
             if event.type == pygame.KEYDOWN:
                 if event.key == ctx.player1.controls["jump"]:
                     ctx.player1.jump()
@@ -215,6 +261,57 @@ class PlayingScreen:
                                 ctx.player2._distance_attack_cooldown_remaining = DISTANCE_ATTACK_COOLDOWN_FRAMES
                                 ctx.player2._distance_burst_remaining = DISTANCE_ATTACK_BURST_SIZE * DISTANCE_ATTACK_NUM_BURSTS - 1
                                 ctx.player2._distance_burst_timer = DISTANCE_ATTACK_BURST_DELAY
+
+        # Si en pause : dessiner la scène figée + overlay + menu pause puis sortir (pas de mise à jour)
+        if ctx.paused:
+            ctx.world_surface.blit(ctx.assets.background, (0, 0))
+            ctx.hitboxes.draw(ctx.world_surface)
+            ctx.platforms.draw(ctx.world_surface)
+            ctx.players.draw(ctx.world_surface)
+            smog_list = getattr(ctx.assets, "smog_surfaces", [])
+            valid_smog = [s for s in smog_list if s is not None] if smog_list else []
+            for pl in (ctx.player1, ctx.player2):
+                if getattr(pl, "_smoke_frames_remaining", 0) > 0 and getattr(pl, "_smoke_surface", None) is not None:
+                    surf = pl._smoke_surface
+                    x, y = pl._smoke_x - surf.get_width() // 2, pl._smoke_y - surf.get_height() // 2
+                    ctx.world_surface.blit(surf, (x, y))
+            draw_player_ping(ctx.world_surface, ctx.player1, ctx.assets.ping_p1, ctx.assets.ping_offset_above)
+            draw_player_ping(ctx.world_surface, ctx.player2, ctx.assets.ping_p2, ctx.assets.ping_offset_above)
+            ctx.screen.blit(ctx.world_surface, (0, 0), (int(ctx.camera_x), int(ctx.camera_y), ctx.screen_w, ctx.screen_h))
+            hud_y = ctx.screen_h - ctx.assets.hud_bottom_y_offset
+            percent_y = hud_y - 28
+            margin = ctx.assets.portrait_side_margin
+            draw_percent_hud(ctx.screen, ctx.player1, margin, percent_y, ctx.assets, align_left=True)
+            draw_percent_hud(ctx.screen, ctx.player2, ctx.screen_w - margin, percent_y, ctx.assets, align_left=False)
+            draw_portraits(ctx.screen, ctx.assets, ctx.screen_w, hud_y, ctx.player1, ctx.player2)
+            # Overlay semi-transparent
+            overlay = pygame.Surface((ctx.screen_w, ctx.screen_h))
+            overlay.set_alpha(140)
+            overlay.fill((0, 0, 0))
+            ctx.screen.blit(overlay, (0, 0))
+            # Panel pause
+            panel_w, panel_h = 340, 200
+            panel_rect = pygame.Rect(ctx.screen_w // 2 - panel_w // 2, ctx.screen_h // 2 - panel_h // 2, panel_w, panel_h)
+            pygame.draw.rect(ctx.screen, (45, 50, 62), panel_rect, border_radius=14)
+            pygame.draw.rect(ctx.screen, (255, 215, 100), panel_rect, 3, border_radius=14)
+            try:
+                font_title = pygame.font.SysFont("arial", 38, bold=True)
+                font_opt = pygame.font.SysFont("arial", 28, bold=True)
+            except Exception:
+                font_title = pygame.font.Font(None, 48)
+                font_opt = pygame.font.Font(None, 36)
+            title_surf = font_title.render("PAUSE", True, (255, 252, 245))
+            ctx.screen.blit(title_surf, title_surf.get_rect(center=(ctx.screen_w // 2, panel_rect.y + 42)))
+            for i, label in enumerate(("Reprendre", "Quitter la partie")):
+                color = (255, 220, 100) if i == ctx.pause_menu_cursor else (220, 220, 220)
+                opt_surf = font_opt.render(label, True, color)
+                y = panel_rect.y + 88 + i * 44
+                ctx.screen.blit(opt_surf, opt_surf.get_rect(center=(ctx.screen_w // 2, y)))
+            hint = font_opt.render("Échap / Start : reprendre", True, (150, 155, 165))
+            ctx.screen.blit(hint, hint.get_rect(center=(ctx.screen_w // 2, ctx.screen_h - 40)))
+            pygame.display.flip()
+            ctx.clock.tick(60)
+            return
 
         # Rafale : décrémenter le timer puis tirer les projectiles 2 à 3 après le délai ; cooldown entre rafales
         for player in (ctx.player1, ctx.player2):
