@@ -1,15 +1,20 @@
 """Écran de sélection de carte."""
 import pygame
 from game.config import JOY_DEADZONE, JOY_BTN_JUMP, JOY_BTN_START
+from game.input_handling import get_joystick_poll_events, safe_event_get
 
 
 class MapSelectScreen:
     def run(self, ctx):
-        try:
-            events = pygame.event.get()
-        except (KeyError, SystemError):
-            events = []
+        events = safe_event_get()
         n_joy = pygame.joystick.get_count()
+        for jid in range(min(2, n_joy)):
+            try:
+                pygame.joystick.Joystick(jid).init()
+            except Exception:
+                pass
+        if n_joy > 0:
+            events.extend(get_joystick_poll_events(JOY_DEADZONE, (JOY_BTN_JUMP, JOY_BTN_START)))
         for event in events:
             if event.type == pygame.QUIT:
                 ctx.running = False
@@ -23,13 +28,13 @@ class MapSelectScreen:
                     ctx.selected_map_index = ctx.map_select_cursor
                     ctx.game_state = "character_select"
                     return
-            if event.type == pygame.JOYAXISMOTION and n_joy > 0 and event.joy == 0 and event.axis == 0:
+            if event.type == pygame.JOYAXISMOTION and n_joy > 0 and event.joy in (0, 1) and event.axis == 0:
                 ax = event.value
                 if ax < -JOY_DEADZONE:
                     ctx.map_select_cursor = (ctx.map_select_cursor - 1) % len(ctx.assets.map_surfaces)
                 elif ax > JOY_DEADZONE:
                     ctx.map_select_cursor = (ctx.map_select_cursor + 1) % len(ctx.assets.map_surfaces)
-            if event.type == pygame.JOYBUTTONDOWN and n_joy > 0 and event.joy == 0 and event.button in (JOY_BTN_JUMP, JOY_BTN_START):
+            if event.type == pygame.JOYBUTTONDOWN and n_joy > 0 and event.joy in (0, 1) and event.button in (JOY_BTN_JUMP, JOY_BTN_START):
                 ctx.selected_map_index = ctx.map_select_cursor
                 ctx.game_state = "character_select"
                 return

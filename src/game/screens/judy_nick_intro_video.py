@@ -1,13 +1,19 @@
-"""Écran de lecture des vidéos d'intro (1.mp4 Judy P1 / Nick P2, 1_2.mp4 Nick P1 / Judy P2)."""
+"""Écran de lecture des vidéos d'intro (1.mp4 Judy P1 / Nick P2, 1_2.mp4 Nick P1 / Judy P2).
+Import de cv2 différé pour éviter le conflit SDL2 avec pygame (sinon les manettes ne marchent pas).
+"""
 import os
 import pygame
-from game.config import JOY_BTN_JUMP, JOY_BTN_START
+from game.config import JOY_DEADZONE, JOY_BTN_JUMP, JOY_BTN_START
+from game.input_handling import get_joystick_poll_events, safe_event_get
 
-try:
-    import cv2
-    _HAS_CV2 = True
-except ImportError:
-    _HAS_CV2 = False
+
+def _import_cv2():
+    """Import OpenCV uniquement au moment de lire la vidéo (évite conflit SDL2 / manettes)."""
+    try:
+        import cv2
+        return cv2
+    except (ImportError, OSError, Exception):
+        return None
 
 
 class JudyNickIntroVideoScreen:
@@ -15,11 +21,17 @@ class JudyNickIntroVideoScreen:
     def __init__(self):
         self._cap = None
         self._video_path = None
+        self._cv2 = None  # chargé à la première lecture
 
     def run(self, ctx):
         # Pas d'OpenCV ou première frame : ouvrir la vidéo ou passer à versus
         if self._cap is None:
-            if not _HAS_CV2 or not getattr(ctx, "intro_video_filename", None):
+            if not getattr(ctx, "intro_video_filename", None):
+                self._go_versus(ctx)
+                return
+            if self._cv2 is None:
+                self._cv2 = _import_cv2()
+            if self._cv2 is None:
                 self._go_versus(ctx)
                 return
             self._video_path = os.path.join(
@@ -29,7 +41,7 @@ class JudyNickIntroVideoScreen:
                 self._go_versus(ctx)
                 return
             try:
-                self._cap = cv2.VideoCapture(self._video_path)
+                self._cap = self._cv2.VideoCapture(self._video_path)
                 if not self._cap.isOpened():
                     self._go_versus(ctx)
                     return
@@ -37,7 +49,11 @@ class JudyNickIntroVideoScreen:
                 self._go_versus(ctx)
                 return
 
-        for event in pygame.event.get():
+        events = safe_event_get()
+        n_joy = pygame.joystick.get_count()
+        if n_joy > 0:
+            events.extend(get_joystick_poll_events(JOY_DEADZONE, (JOY_BTN_JUMP, JOY_BTN_START)))
+        for event in events:
             if event.type == pygame.QUIT:
                 ctx.running = False
                 self._release()
@@ -46,7 +62,7 @@ class JudyNickIntroVideoScreen:
                 self._release()
                 self._go_versus(ctx)
                 return
-            if event.type == pygame.JOYBUTTONDOWN and event.joy == 0 and event.button in (JOY_BTN_JUMP, JOY_BTN_START):
+            if event.type == pygame.JOYBUTTONDOWN and event.joy in (0, 1) and event.button in (JOY_BTN_JUMP, JOY_BTN_START):
                 self._release()
                 self._go_versus(ctx)
                 return
@@ -60,6 +76,7 @@ class JudyNickIntroVideoScreen:
             return
 
         # BGR (OpenCV) -> RGB, puis Surface
+        cv2 = self._cv2
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         h, w = frame_rgb.shape[:2]
         surf = pygame.image.frombuffer(frame_rgb.tobytes(), (w, h), "RGB")

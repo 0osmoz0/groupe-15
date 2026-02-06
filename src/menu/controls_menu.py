@@ -4,6 +4,7 @@ Permet de remapper les touches pour P1 et P2.
 """
 from typing import Optional, Tuple, Dict, Any
 import pygame
+from game.input_handling import get_poll_axis
 
 
 # Ordre et libellés des actions
@@ -58,7 +59,7 @@ class ControlsMenu:
         self._step = "player"  # "player" | "action" | "listening"
         self._cursor = 0
         self._player_index = 0  # 0 = P1, 1 = P2
-        self._axis1_prev = 0.0
+        self._axis1_prev = {0: 0.0, 1: 0.0}  # par joy_id pour les deux manettes
         self._listening_control: Optional[str] = None
 
         self._font_title = self._create_font(64, bold=True)
@@ -130,18 +131,19 @@ class ControlsMenu:
                 return None
             if event.key in (pygame.K_RETURN, pygame.K_a):
                 return self._on_confirm()
-        if event.type == pygame.JOYAXISMOTION and joystick_count > 0 and event.joy == 0 and event.axis == 1:
+        if event.type == pygame.JOYAXISMOTION and joystick_count > 0 and event.joy in (0, 1) and event.axis == 1:
             ax1 = event.value
-            if ax1 < -self.joy_deadzone and self._axis1_prev >= -self.joy_deadzone:
+            prev = self._axis1_prev.get(event.joy, 0.0)
+            if ax1 < -self.joy_deadzone and prev >= -self.joy_deadzone:
                 self._cursor = (self._cursor - 1) % self._option_count()
-            elif ax1 > self.joy_deadzone and self._axis1_prev <= self.joy_deadzone:
+            elif ax1 > self.joy_deadzone and prev <= self.joy_deadzone:
                 self._cursor = (self._cursor + 1) % self._option_count()
-            self._axis1_prev = ax1
+            self._axis1_prev[event.joy] = ax1
             return None
         if (
             event.type == pygame.JOYBUTTONDOWN
             and joystick_count > 0
-            and event.joy == 0
+            and event.joy in (0, 1)
             and event.button in self.joy_confirm_buttons
         ):
             return self._on_confirm()
@@ -175,11 +177,14 @@ class ControlsMenu:
         return None
 
     def update(self, joystick_count: int) -> None:
-        if joystick_count > 0 and self._step != "listening":
+        if joystick_count >= 2 and self._step != "listening":
+            for joy_id in (0, 1):
+                self._axis1_prev[joy_id] = get_poll_axis(joy_id, 1)
+        elif joystick_count > 0 and self._step != "listening":
             try:
                 j = pygame.joystick.Joystick(0)
                 if j.get_numaxes() > 1:
-                    self._axis1_prev = j.get_axis(1)
+                    self._axis1_prev[0] = j.get_axis(1)
             except Exception:
                 pass
 

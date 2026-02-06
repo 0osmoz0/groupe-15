@@ -2,12 +2,13 @@
 import pygame
 from game.config import COUNTDOWN_DURATION_MS
 from game.hud import draw_player_ping
+from game.input_handling import safe_event_get
 
 
 class CountdownScreen:
     def run(self, ctx):
         dt_ms = ctx.clock.get_time()
-        for event in pygame.event.get():
+        for event in safe_event_get():
             if event.type == pygame.QUIT:
                 ctx.running = False
                 return

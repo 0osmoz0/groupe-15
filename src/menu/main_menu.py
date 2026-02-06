@@ -4,6 +4,7 @@ Gère affichage, curseur et entrées clavier/manette.
 """
 from typing import Optional, Tuple, Sequence
 import pygame
+from game.input_handling import get_poll_axis
 
 
 class MainMenu:
@@ -36,8 +37,8 @@ class MainMenu:
         self.joy_confirm_buttons = joy_confirm_buttons
 
         self._cursor = 0
-        self._axis0_prev = 0.0
-        self._axis1_prev = 0.0
+        # Valeurs précédentes par (joy_id, axis) pour que les deux manettes fonctionnent
+        self._axis_prev: dict = {}  # (joy_id, axis) -> float
 
         self._font_title = self._create_font(120, bold=True)
         self._font_option = self._create_font(56, bold=True)
@@ -122,27 +123,27 @@ class MainMenu:
             if event.key in (pygame.K_RETURN, pygame.K_a):
                 return self.options[self._cursor]
 
-        if event.type == pygame.JOYAXISMOTION and joystick_count > 0 and event.joy == 0:
+        if event.type == pygame.JOYAXISMOTION and joystick_count > 0 and event.joy in (0, 1):
+            key = (event.joy, event.axis)
+            prev = self._axis_prev.get(key, 0.0)
+            val = event.value
             if event.axis == 0:
-                ax0 = event.value
-                if ax0 < -self.joy_deadzone and self._axis0_prev >= -self.joy_deadzone:
+                if val < -self.joy_deadzone and prev >= -self.joy_deadzone:
                     self._move_cursor_grid(0, -1)
-                elif ax0 > self.joy_deadzone and self._axis0_prev <= self.joy_deadzone:
+                elif val > self.joy_deadzone and prev <= self.joy_deadzone:
                     self._move_cursor_grid(0, 1)
-                self._axis0_prev = ax0
             elif event.axis == 1:
-                ax1 = event.value
-                if ax1 < -self.joy_deadzone and self._axis1_prev >= -self.joy_deadzone:
+                if val < -self.joy_deadzone and prev >= -self.joy_deadzone:
                     self._move_cursor_grid(-1, 0)
-                elif ax1 > self.joy_deadzone and self._axis1_prev <= self.joy_deadzone:
+                elif val > self.joy_deadzone and prev <= self.joy_deadzone:
                     self._move_cursor_grid(1, 0)
-                self._axis1_prev = ax1
+            self._axis_prev[key] = val
             return None
 
         if (
             event.type == pygame.JOYBUTTONDOWN
             and joystick_count > 0
-            and event.joy == 0
+            and event.joy in (0, 1)
             and event.button in self.joy_confirm_buttons
         ):
             return self.options[self._cursor]
@@ -150,16 +151,39 @@ class MainMenu:
         return None
 
     def update(self, joystick_count: int) -> None:
-        """Met à jour l'état (ex: valeur du stick pour éviter répétition)."""
-        if joystick_count > 0:
-            try:
-                j = pygame.joystick.Joystick(0)
-                if j.get_numaxes() > 0:
-                    self._axis0_prev = j.get_axis(0)
-                if j.get_numaxes() > 1:
-                    self._axis1_prev = j.get_axis(1)
-            except Exception:
-                pass
+        """Met à jour l'état du stick par manette ; si 2 manettes, utilise le cache de polling (macOS)."""
+        if joystick_count <= 0:
+            self._axis_prev.clear()
+            return
+        for joy_id in (0, 1):
+            if joy_id >= joystick_count:
+                continue
+            if joystick_count >= 2:
+                ax0 = get_poll_axis(joy_id, 0)
+                ax1 = get_poll_axis(joy_id, 1)
+                key0, key1 = (joy_id, 0), (joy_id, 1)
+                prev0 = self._axis_prev.get(key0, 0.0)
+                prev1 = self._axis_prev.get(key1, 0.0)
+                if ax0 < -self.joy_deadzone and prev0 >= -self.joy_deadzone:
+                    self._move_cursor_grid(0, -1)
+                elif ax0 > self.joy_deadzone and prev0 <= self.joy_deadzone:
+                    self._move_cursor_grid(0, 1)
+                if ax1 < -self.joy_deadzone and prev1 >= -self.joy_deadzone:
+                    self._move_cursor_grid(-1, 0)
+                elif ax1 > self.joy_deadzone and prev1 <= self.joy_deadzone:
+                    self._move_cursor_grid(1, 0)
+                self._axis_prev[key0] = ax0
+                self._axis_prev[key1] = ax1
+            else:
+                try:
+                    j = pygame.joystick.Joystick(joy_id)
+                    j.init()
+                    if j.get_numaxes() > 0:
+                        self._axis_prev[(joy_id, 0)] = j.get_axis(0)
+                    if j.get_numaxes() > 1:
+                        self._axis_prev[(joy_id, 1)] = j.get_axis(1)
+                except Exception:
+                    pass
 
     def draw(self, screen: pygame.Surface) -> None:
         """Dessine le menu (positionnement Smash : grand rect en haut à gauche + grille 2x2 en dessous)."""

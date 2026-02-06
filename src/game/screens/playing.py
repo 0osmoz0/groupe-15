@@ -1,8 +1,11 @@
 """État de jeu principal (combat, caméra, HUD)."""
 import pygame
-from game.config import CAMERA_LERP, JOY_DEADZONE, JOY_BTN_JUMP, JOY_BTN_ATTACK, JOY_BTN_GRAB, JOY_BTN_COUNTER, JOY_BTN_SPECIAL, DEBUG_JOYSTICK
+from game.config import (
+    CAMERA_LERP, JOY_DEADZONE, JOY_BTN_JUMP, JOY_BTN_ATTACK, JOY_BTN_GRAB, JOY_BTN_COUNTER, JOY_BTN_SPECIAL,
+    DEBUG_JOYSTICK, DEBUG_JOYSTICK_VERBOSE, DEBUG_JOYSTICK_VERBOSE_INTERVAL,
+)
 from game.hud import draw_player_ping, draw_portraits, draw_percent_hud
-from game.input_handling import get_player_input_state, start_attack_from_input
+from game.input_handling import get_player_input_state, start_attack_from_input, get_joystick_poll_events, get_effective_joy_count, _debug_joy_global_frame, safe_event_get
 from combat.projectile_sprite import ProjectileSprite
 from player.player import DISTANCE_ATTACK_COOLDOWN_FRAMES, DISTANCE_ATTACK_BURST_DELAY
 
@@ -21,7 +24,26 @@ class PlayingScreen:
             ctx.judy_win_frame_timer_ms = 0
             return
 
-        for event in pygame.event.get():
+        events = safe_event_get()
+        n_joy_raw = pygame.joystick.get_count()
+        n_joy = get_effective_joy_count()  # collant à 2 pour ne pas perdre P2 quand get_count() flicker
+        # Toujours réassigner P1/P2 aux manettes (manette 0 = P1, manette 1 = P2)
+        ctx.player1.joy_id = 0 if n_joy >= 1 else None
+        ctx.player2.joy_id = 1 if n_joy >= 2 else None
+        # Forcer l'init des manettes physiquement présentes (on peut avoir effective=2 alors que raw=1)
+        for jid in range(min(2, n_joy_raw)):
+            try:
+                pygame.joystick.Joystick(jid).init()
+            except Exception:
+                pass
+        if n_joy_raw > 0:
+            events.extend(get_joystick_poll_events(
+                JOY_DEADZONE,
+                (JOY_BTN_JUMP, JOY_BTN_ATTACK, JOY_BTN_SPECIAL, JOY_BTN_COUNTER, JOY_BTN_GRAB),
+            ))
+        if DEBUG_JOYSTICK_VERBOSE and _debug_joy_global_frame > 0 and _debug_joy_global_frame % DEBUG_JOYSTICK_VERBOSE_INTERVAL == 0:
+            print(f"[Manette VERBOSE] frame={_debug_joy_global_frame} Playing: get_count()={n_joy} P1.joy_id={ctx.player1.joy_id} P2.joy_id={ctx.player2.joy_id} nb_events_manette={sum(1 for e in events if e.type in (pygame.JOYAXISMOTION, pygame.JOYBUTTONDOWN))}")
+        for event in events:
             if event.type == pygame.QUIT:
                 ctx.running = False
                 return
@@ -62,13 +84,14 @@ class PlayingScreen:
                             ctx.player2._distance_attack_cooldown_remaining = DISTANCE_ATTACK_COOLDOWN_FRAMES
                             ctx.player2._distance_burst_remaining = 2
                             ctx.player2._distance_burst_timer = DISTANCE_ATTACK_BURST_DELAY
-            if event.type == pygame.JOYAXISMOTION and DEBUG_JOYSTICK and abs(event.value) > JOY_DEADZONE:
-                print(f"[Manette] axe joy={event.joy} axis={event.axis} value={event.value:.2f}")
+            if event.type == pygame.JOYAXISMOTION and DEBUG_JOYSTICK_VERBOSE and abs(event.value) > JOY_DEADZONE:
+                print(f"[Manette EVENT] JOYAXISMOTION joy={event.joy} axis={event.axis} value={event.value:.2f}")
             if event.type == pygame.JOYBUTTONDOWN:
-                if DEBUG_JOYSTICK:
-                    print(f"[Manette] bouton joy_id={event.joy} button={event.button}")
+                if DEBUG_JOYSTICK or DEBUG_JOYSTICK_VERBOSE:
+                    print(f"[Manette EVENT] JOYBUTTONDOWN joy_id={event.joy} button={event.button}")
                 joy_id, btn = event.joy, event.button
-                if joy_id == 0 and getattr(ctx.player1, "joy_id", None) == 0:
+                # Manette 0 = P1, Manette 1 = P2 (quand n_joy >= 2)
+                if joy_id == 0:
                     if btn == JOY_BTN_JUMP: ctx.player1.jump()
                     elif btn == JOY_BTN_ATTACK and ctx.player1.lives > 0:
                         start_attack_from_input(ctx.player1, ctx.hitboxes, "jab", "ftilt", "utilt", "dtilt", "nair", "fair", "bair", "uair", "dair")
@@ -85,7 +108,7 @@ class PlayingScreen:
                                 ctx.player1._distance_attack_cooldown_remaining = DISTANCE_ATTACK_COOLDOWN_FRAMES
                                 ctx.player1._distance_burst_remaining = 2
                                 ctx.player1._distance_burst_timer = DISTANCE_ATTACK_BURST_DELAY
-                if joy_id == 1 and getattr(ctx.player2, "joy_id", None) == 1:
+                elif joy_id == 1 and n_joy >= 2:
                     if btn == JOY_BTN_JUMP: ctx.player2.jump()
                     elif btn == JOY_BTN_ATTACK and ctx.player2.lives > 0:
                         start_attack_from_input(ctx.player2, ctx.hitboxes, "jab", "ftilt", "utilt", "dtilt", "nair", "fair", "bair", "uair", "dair")

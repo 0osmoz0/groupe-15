@@ -1,15 +1,21 @@
 """Écran de sélection de personnage (P1 puis P2)."""
+import sys
 import pygame
 from game.config import JOY_DEADZONE, JOY_BTN_JUMP, JOY_BTN_START
+from game.input_handling import get_joystick_poll_events, safe_event_get
 
 
 class CharacterSelectScreen:
     def run(self, ctx):
-        try:
-            events = pygame.event.get()
-        except (KeyError, SystemError):
-            events = []
+        events = safe_event_get()
         n_joy = pygame.joystick.get_count()
+        for jid in range(min(2, n_joy)):
+            try:
+                pygame.joystick.Joystick(jid).init()
+            except Exception:
+                pass
+        if n_joy > 0:
+            events.extend(get_joystick_poll_events(JOY_DEADZONE, (JOY_BTN_JUMP, JOY_BTN_START)))
         for event in events:
             if event.type == pygame.QUIT:
                 ctx.running = False
@@ -26,7 +32,7 @@ class CharacterSelectScreen:
                 elif event.key in (pygame.K_RETURN, pygame.K_SPACE):
                     self._confirm(ctx)
                     return
-            if event.type == pygame.JOYAXISMOTION and n_joy > 0 and event.joy == 0 and event.axis == 0:
+            if event.type == pygame.JOYAXISMOTION and n_joy > 0 and event.joy in (0, 1) and event.axis == 0:
                 ax = event.value
                 if ax < -JOY_DEADZONE:
                     ctx.char_select_cursor = (ctx.char_select_cursor - 1) % len(ctx.characters)
@@ -36,7 +42,7 @@ class CharacterSelectScreen:
                     ctx.char_select_cursor = (ctx.char_select_cursor + 1) % len(ctx.characters)
                     if ctx.char_select_phase == "p2" and ctx.characters[ctx.char_select_cursor] == ctx.p1_character_choice:
                         ctx.char_select_cursor = (ctx.char_select_cursor + 1) % len(ctx.characters)
-            if event.type == pygame.JOYBUTTONDOWN and n_joy > 0 and event.joy == 0 and event.button in (JOY_BTN_JUMP, JOY_BTN_START):
+            if event.type == pygame.JOYBUTTONDOWN and n_joy > 0 and event.joy in (0, 1) and event.button in (JOY_BTN_JUMP, JOY_BTN_START):
                 self._confirm(ctx)
                 return
         if not ctx.running:
@@ -61,12 +67,27 @@ class CharacterSelectScreen:
                     ctx.menu_music_playing = False
                 except Exception:
                     pass
+            # Sur macOS, on saute l'intro vidéo (OpenCV = 2e SDL = manettes cassées)
             if ctx.p1_character_choice == "judy" and ctx.p2_character_choice == "nick":
-                ctx.intro_video_filename = "1.mp4"
-                ctx.game_state = "intro_video"
+                if sys.platform == "darwin":
+                    ctx.game_state = "versus_gif"
+                    ctx.versus_gif_frame_index = 0
+                    ctx.versus_gif_timer_ms = 0
+                    ctx.versus_gif_phase = "playing"
+                    ctx.wait_after_gif_timer_ms = 0
+                else:
+                    ctx.intro_video_filename = "1.mp4"
+                    ctx.game_state = "intro_video"
             elif ctx.p1_character_choice == "nick" and ctx.p2_character_choice == "judy":
-                ctx.intro_video_filename = "1_2.mp4"
-                ctx.game_state = "intro_video"
+                if sys.platform == "darwin":
+                    ctx.game_state = "versus_gif"
+                    ctx.versus_gif_frame_index = 0
+                    ctx.versus_gif_timer_ms = 0
+                    ctx.versus_gif_phase = "playing"
+                    ctx.wait_after_gif_timer_ms = 0
+                else:
+                    ctx.intro_video_filename = "1_2.mp4"
+                    ctx.game_state = "intro_video"
             else:
                 ctx.game_state = "versus_gif"
                 ctx.versus_gif_frame_index = 0

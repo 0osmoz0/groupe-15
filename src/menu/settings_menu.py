@@ -4,6 +4,7 @@ Options : Plein écran (toggle), Retour.
 """
 from typing import Optional, Tuple, Callable
 import pygame
+from game.input_handling import get_poll_axis
 
 
 class SettingsMenu:
@@ -24,7 +25,7 @@ class SettingsMenu:
         self.joy_confirm_buttons = joy_confirm_buttons
 
         self._cursor = 0
-        self._axis1_prev = 0.0
+        self._axis1_prev = {0: 0.0, 1: 0.0}  # par joy_id pour les deux manettes
         self._option_count = 3  # Plein écran, Contrôles, Retour
 
         self._font_title = self._create_font(80, bold=True)
@@ -74,19 +75,20 @@ class SettingsMenu:
             if event.key == pygame.K_ESCAPE:
                 return "back"
 
-        if event.type == pygame.JOYAXISMOTION and joystick_count > 0 and event.joy == 0 and event.axis == 1:
+        if event.type == pygame.JOYAXISMOTION and joystick_count > 0 and event.joy in (0, 1) and event.axis == 1:
             ax1 = event.value
-            if ax1 < -self.joy_deadzone and self._axis1_prev >= -self.joy_deadzone:
+            prev = self._axis1_prev.get(event.joy, 0.0)
+            if ax1 < -self.joy_deadzone and prev >= -self.joy_deadzone:
                 self._move_cursor(-1)
-            elif ax1 > self.joy_deadzone and self._axis1_prev <= self.joy_deadzone:
+            elif ax1 > self.joy_deadzone and prev <= self.joy_deadzone:
                 self._move_cursor(1)
-            self._axis1_prev = ax1
+            self._axis1_prev[event.joy] = ax1
             return None
 
         if (
             event.type == pygame.JOYBUTTONDOWN
             and joystick_count > 0
-            and event.joy == 0
+            and event.joy in (0, 1)
             and event.button in self.joy_confirm_buttons
         ):
             if self._cursor == 0:
@@ -98,11 +100,14 @@ class SettingsMenu:
         return None
 
     def update(self, joystick_count: int) -> None:
-        if joystick_count > 0:
+        if joystick_count >= 2:
+            for joy_id in (0, 1):
+                self._axis1_prev[joy_id] = get_poll_axis(joy_id, 1)
+        elif joystick_count > 0:
             try:
                 j = pygame.joystick.Joystick(0)
                 if j.get_numaxes() > 1:
-                    self._axis1_prev = j.get_axis(1)
+                    self._axis1_prev[0] = j.get_axis(1)
             except Exception:
                 pass
 

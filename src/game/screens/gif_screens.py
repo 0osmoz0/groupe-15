@@ -1,7 +1,8 @@
 """Écrans GIF (versus, enter, P1 confirm, etc.)."""
 import pygame
-from game.config import JOY_BTN_JUMP, JOY_BTN_START
+from game.config import JOY_DEADZONE, JOY_BTN_JUMP, JOY_BTN_START
 from game.config import WAIT_AFTER_GIF_MS, WAIT_AFTER_P1_CONFIRM_MS, WAIT_AFTER_ENTER_GIF_MS, WAIT_AFTER_ENTER_THEN_A_MS
+from game.input_handling import get_joystick_poll_events, safe_event_get
 
 
 def _run_gif_playing(ctx, frames_attr, frame_index_attr, timer_attr, phase_attr, wait_timer_attr, wait_max_ms, next_state, dt_ms):
@@ -58,7 +59,11 @@ def _run_gif_playing(ctx, frames_attr, frame_index_attr, timer_attr, phase_attr,
 class VersusGifScreen:
     def run(self, ctx):
         dt_ms = ctx.clock.get_time()
-        for event in pygame.event.get():
+        events = safe_event_get()
+        n_joy = pygame.joystick.get_count()
+        if n_joy > 0:
+            events.extend(get_joystick_poll_events(JOY_DEADZONE, (JOY_BTN_JUMP, JOY_BTN_START)))
+        for event in events:
             if event.type == pygame.QUIT:
                 ctx.running = False
                 return
@@ -69,7 +74,7 @@ class VersusGifScreen:
                 ctx.p1_confirm_phase = "playing"
                 ctx.wait_after_p1_confirm_timer_ms = 0
                 return
-            if event.type == pygame.JOYBUTTONDOWN and event.joy == 0 and event.button in (JOY_BTN_JUMP, JOY_BTN_START):
+            if event.type == pygame.JOYBUTTONDOWN and event.joy in (0, 1) and event.button in (JOY_BTN_JUMP, JOY_BTN_START):
                 ctx.game_state = "versus_gif_p1_confirm"
                 ctx.p1_confirm_frame_index = 0
                 ctx.p1_confirm_timer_ms = 0
@@ -103,7 +108,11 @@ class VersusGifScreen:
 
 class WaitP1EnterScreen:
     def run(self, ctx):
-        for event in pygame.event.get():
+        events = safe_event_get()
+        n_joy = pygame.joystick.get_count()
+        if n_joy > 0:
+            events.extend(get_joystick_poll_events(JOY_DEADZONE, (JOY_BTN_JUMP, JOY_BTN_START)))
+        for event in events:
             if event.type == pygame.QUIT:
                 ctx.running = False
                 return
@@ -114,7 +123,7 @@ class WaitP1EnterScreen:
                 ctx.p1_confirm_phase = "playing"
                 ctx.wait_after_p1_confirm_timer_ms = 0
                 return
-            if event.type == pygame.JOYBUTTONDOWN and event.joy == 0 and event.button in (JOY_BTN_JUMP, JOY_BTN_START):
+            if event.type == pygame.JOYBUTTONDOWN and event.joy in (0, 1) and event.button in (JOY_BTN_JUMP, JOY_BTN_START):
                 ctx.game_state = "versus_gif_p1_confirm"
                 ctx.p1_confirm_frame_index = 0
                 ctx.p1_confirm_timer_ms = 0
@@ -132,7 +141,7 @@ class WaitP1EnterScreen:
 class VersusGifP1ConfirmScreen:
     def run(self, ctx):
         dt_ms = ctx.clock.get_time()
-        for event in pygame.event.get():
+        for event in safe_event_get():
             if event.type == pygame.QUIT:
                 ctx.running = False
                 return
@@ -169,7 +178,7 @@ class EnterGifScreen:
     """Écran titre 'Enter' GIF (chemin alternatif depuis title_screen)."""
     def run(self, ctx):
         dt_ms = ctx.clock.get_time()
-        for event in pygame.event.get():
+        for event in safe_event_get():
             if event.type == pygame.QUIT:
                 ctx.running = False
                 return
@@ -180,7 +189,7 @@ class EnterGifScreen:
                 ctx.enter_then_a_phase = "playing"
                 ctx.wait_after_enter_then_a_timer_ms = 0
                 return
-            if event.type == pygame.JOYBUTTONDOWN and event.joy == 0 and event.button in (JOY_BTN_JUMP, JOY_BTN_START):
+            if event.type == pygame.JOYBUTTONDOWN and event.joy in (0, 1) and event.button in (JOY_BTN_JUMP, JOY_BTN_START):
                 ctx.game_state = "versus_gif_enter_then_a"
                 ctx.enter_then_a_frame_index = 0
                 ctx.enter_then_a_timer_ms = 0
@@ -223,7 +232,7 @@ class EnterGifScreen:
 class EnterThenAGifScreen:
     def run(self, ctx):
         dt_ms = ctx.clock.get_time()
-        for event in pygame.event.get():
+        for event in safe_event_get():
             if event.type == pygame.QUIT:
                 ctx.running = False
                 return

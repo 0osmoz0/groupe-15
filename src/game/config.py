@@ -25,6 +25,10 @@ WAIT_AFTER_P1_CONFIRM_MS = 2000
 WAIT_AFTER_ENTER_GIF_MS = 2000
 WAIT_AFTER_ENTER_THEN_A_MS = 2000
 
-# Debug
+# Debug manette (True = logs init, rescan, erreurs)
 DEBUG_JOYSTICK = True
+# Debug ultra-verbose : résumé toutes les 30 frames (get_count, cache, _get_joy_input) + chaque event manette
+DEBUG_JOYSTICK_VERBOSE = True
+# Intervalle des logs verbose (frames) — 30 = ~0.5 s à 60 FPS
+DEBUG_JOYSTICK_VERBOSE_INTERVAL = 30
 DEBUG_HUD_BLACK = False

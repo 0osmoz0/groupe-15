@@ -2,6 +2,8 @@ import math
 import os
 import pygame
 from player.stats import Stats
+from game.input_handling import get_poll_axis, get_poll_button, get_effective_joy_count, _debug_joy_global_frame
+from game.config import DEBUG_JOYSTICK, DEBUG_JOYSTICK_VERBOSE, DEBUG_JOYSTICK_VERBOSE_INTERVAL
 from combat.hitbox_sprite import HitboxSprite
 from combat.knockback import decay_launch_speed
 
@@ -194,32 +196,32 @@ class Player(pygame.sprite.Sprite):
         self.rect = self.image.get_rect(center=(cx, cy))
 
     def _get_joy_input(self):
-        """(left, right, up, down, jump_held) depuis la manette si connectée."""
-        if self.joy_id is None or self.joy_id >= pygame.joystick.get_count():
+        """(left, right, up, down, jump_held) depuis la manette. Priorité au cache de polling. Utilise le nombre effectif (collant à 2)."""
+        n_joy = get_effective_joy_count()
+        who = "P1" if getattr(self, "joy_id", None) == 0 else "P2"
+        if self.joy_id is None:
+            if DEBUG_JOYSTICK and DEBUG_JOYSTICK_VERBOSE and _debug_joy_global_frame > 0 and _debug_joy_global_frame % (DEBUG_JOYSTICK_VERBOSE_INTERVAL * 2) == 0:
+                print(f"[Manette DBG] _get_joy_input({who}): None car joy_id=None (n_effective={n_joy}) -> clavier utilisé")
             return None
-        try:
-            joy = pygame.joystick.Joystick(self.joy_id)
-            dead = 0.35
-            ax0 = joy.get_axis(0) if joy.get_numaxes() > 0 else 0.0
-            ax1 = joy.get_axis(1) if joy.get_numaxes() > 1 else 0.0
-            left = ax0 < -dead
-            right = ax0 > dead
-            up = ax1 < -dead
-            down = ax1 > dead
-            if joy.get_numhats() > 0:
-                hx, hy = joy.get_hat(0)
-                if hx < 0:
-                    left = True
-                if hx > 0:
-                    right = True
-                if hy > 0:
-                    up = True
-                if hy < 0:
-                    down = True
-            jump_held = joy.get_button(0) if joy.get_numbuttons() > 0 else False
-            return (left, right, up, down, jump_held)
-        except Exception:
+        if self.joy_id >= n_joy:
+            if DEBUG_JOYSTICK and DEBUG_JOYSTICK_VERBOSE and _debug_joy_global_frame > 0 and _debug_joy_global_frame % (DEBUG_JOYSTICK_VERBOSE_INTERVAL * 2) == 0:
+                print(f"[Manette DBG] _get_joy_input({who}): None car joy_id={self.joy_id} >= n_effective={n_joy} -> clavier utilisé")
             return None
+        if n_joy < 1:
+            if DEBUG_JOYSTICK:
+                print(f"[Manette DBG] _get_joy_input({who}): None car n_joy={n_joy} < 1")
+            return None
+        dead = 0.35
+        ax0 = get_poll_axis(self.joy_id, 0)
+        ax1 = get_poll_axis(self.joy_id, 1)
+        jump_held = get_poll_button(self.joy_id, 0)
+        left = ax0 < -dead
+        right = ax0 > dead
+        up = ax1 < -dead
+        down = ax1 > dead
+        if DEBUG_JOYSTICK_VERBOSE and _debug_joy_global_frame > 0 and _debug_joy_global_frame % DEBUG_JOYSTICK_VERBOSE_INTERVAL == 0:
+            print(f"[Manette VERBOSE] frame={_debug_joy_global_frame} _get_joy_input({who}): joy_id={self.joy_id} ax0={ax0:.2f} ax1={ax1:.2f} B0={jump_held} -> L={left} R={right} U={up} D={down} jump_held={jump_held}")
+        return (left, right, up, down, jump_held)
 
     def update_di(self):
         joy_in = self._get_joy_input()
