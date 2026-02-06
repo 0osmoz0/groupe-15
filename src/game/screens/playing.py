@@ -50,7 +50,15 @@ class PlayingScreen:
             ctx.judy_win_frame_index = 0
             ctx.judy_win_frame_timer_ms = 0
             _start_win_music()
-            if not winner_nick:
+            if winner_nick:
+                if getattr(ctx.assets, "nick_win_sound_loaded", False):
+                    try:
+                        snd = pygame.mixer.Sound(ctx.assets.nick_win_sound_path)
+                        snd.set_volume(1.0)
+                        snd.play()
+                    except Exception:
+                        pass
+            else:
                 paths = getattr(ctx.assets, "judy_win_sound_paths", [])
                 loaded = getattr(ctx.assets, "judy_win_sounds_loaded", [])
                 if paths and loaded:
@@ -73,7 +81,15 @@ class PlayingScreen:
             ctx.judy_win_frame_index = 0
             ctx.judy_win_frame_timer_ms = 0
             _start_win_music()
-            if not winner_nick:
+            if winner_nick:
+                if getattr(ctx.assets, "nick_win_sound_loaded", False):
+                    try:
+                        snd = pygame.mixer.Sound(ctx.assets.nick_win_sound_path)
+                        snd.set_volume(1.0)
+                        snd.play()
+                    except Exception:
+                        pass
+            else:
                 paths = getattr(ctx.assets, "judy_win_sound_paths", [])
                 loaded = getattr(ctx.assets, "judy_win_sounds_loaded", [])
                 if paths and loaded:

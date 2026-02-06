@@ -183,6 +183,18 @@ class GameAssets:
         self.judy_win_sounds_loaded = [
             os.path.isfile(p) for p in self.judy_win_sound_paths
         ]
+        # Son de victoire Nick (en plus de la fanfare) — WAV recommandé (Sinon MP3 peut ne pas marcher avec Sound())
+        self.nick_win_sound_path_wav = os.path.join(self.base_dir, "assets", "song", "nick win", "nick_win.wav")
+        self.nick_win_sound_path_mp3 = os.path.join(
+            self.base_dir, "assets", "song", "nick win",
+            "[Fandub] Zootopie - La Rencontre de Judy et Nick (mp3cut (mp3cut.net).mp3"
+        )
+        self.nick_win_sound_loaded = (
+            os.path.isfile(self.nick_win_sound_path_wav) or os.path.isfile(self.nick_win_sound_path_mp3)
+        )
+        self.nick_win_sound_path = (
+            self.nick_win_sound_path_wav if os.path.isfile(self.nick_win_sound_path_wav) else self.nick_win_sound_path_mp3
+        )
 
     def _load_counter(self):
         """Countdown 3-2-1-GO : charge les assets counter/3.png, 2.png, 1.png, go.png."""
