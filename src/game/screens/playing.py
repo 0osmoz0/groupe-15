@@ -216,8 +216,11 @@ class PlayingScreen:
                                 ctx.player2._distance_burst_remaining = DISTANCE_ATTACK_BURST_SIZE * DISTANCE_ATTACK_NUM_BURSTS - 1
                                 ctx.player2._distance_burst_timer = DISTANCE_ATTACK_BURST_DELAY
 
-        # Rafale : décrémenter le timer puis tirer les projectiles 2 à 9 après le délai
+        # Rafale : décrémenter le timer puis tirer les projectiles 2 à 3 après le délai ; cooldown entre rafales
         for player in (ctx.player1, ctx.player2):
+            cooldown = getattr(player, "_distance_attack_cooldown_remaining", 0)
+            if cooldown > 0:
+                player._distance_attack_cooldown_remaining = cooldown - 1
             burst_remaining = getattr(player, "_distance_burst_remaining", 0)
             if burst_remaining > 0:
                 timer = getattr(player, "_distance_burst_timer", 0)

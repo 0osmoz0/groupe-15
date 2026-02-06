@@ -98,7 +98,7 @@ def _load_counter_frame(character: str):
 
 
 DISTANCE_ATTACK_DURATION = 28
-DISTANCE_ATTACK_COOLDOWN_FRAMES = 0   # munition infinie
+DISTANCE_ATTACK_COOLDOWN_FRAMES = 90  # délai (frames) entre chaque rafale de 3 pour éviter le spam
 DISTANCE_ATTACK_BURST_SIZE = 3        # 3 projectiles par rafale (délai entre chaque tir)
 DISTANCE_ATTACK_NUM_BURSTS = 1        # 1 rafale de 3 = 3 tirs au total
 DISTANCE_ATTACK_BURST_DELAY = 8       # frames entre chaque tir
