@@ -19,31 +19,40 @@ class CharacterSelectScreen:
             if event.type == pygame.QUIT:
                 ctx.running = False
                 return
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_LEFT:
-                    ctx.char_select_cursor = (ctx.char_select_cursor - 1) % len(ctx.characters)
-                    if ctx.char_select_phase == "p2" and ctx.characters[ctx.char_select_cursor] == ctx.p1_character_choice:
+            joy_ok_p1 = n_joy > 0 and getattr(event, "joy", -1) == 0
+            joy_ok_p2 = n_joy > 1 and getattr(event, "joy", -1) == 1
+            if ctx.char_select_phase == "p1":
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_LEFT:
                         ctx.char_select_cursor = (ctx.char_select_cursor - 1) % len(ctx.characters)
-                elif event.key in (pygame.K_RIGHT, pygame.K_d):
-                    ctx.char_select_cursor = (ctx.char_select_cursor + 1) % len(ctx.characters)
-                    if ctx.char_select_phase == "p2" and ctx.characters[ctx.char_select_cursor] == ctx.p1_character_choice:
+                    elif event.key in (pygame.K_RIGHT, pygame.K_d):
                         ctx.char_select_cursor = (ctx.char_select_cursor + 1) % len(ctx.characters)
-                elif event.key in (pygame.K_RETURN, pygame.K_SPACE):
+                    elif event.key in (pygame.K_RETURN, pygame.K_SPACE):
+                        self._confirm(ctx)
+                        return
+                if event.type == pygame.JOYAXISMOTION and joy_ok_p1 and event.axis == 0:
+                    ax = event.value
+                    if ax < -JOY_DEADZONE:
+                        ctx.char_select_cursor = (ctx.char_select_cursor - 1) % len(ctx.characters)
+                    elif ax > JOY_DEADZONE:
+                        ctx.char_select_cursor = (ctx.char_select_cursor + 1) % len(ctx.characters)
+                if event.type == pygame.JOYBUTTONDOWN and joy_ok_p1 and event.button in (JOY_BTN_JUMP, JOY_BTN_START):
                     self._confirm(ctx)
                     return
-            if event.type == pygame.JOYAXISMOTION and n_joy > 0 and event.joy in (0, 1) and event.axis == 0:
-                ax = event.value
-                if ax < -JOY_DEADZONE:
-                    ctx.char_select_cursor = (ctx.char_select_cursor - 1) % len(ctx.characters)
-                    if ctx.char_select_phase == "p2" and ctx.characters[ctx.char_select_cursor] == ctx.p1_character_choice:
+            else:
+                if event.type == pygame.JOYAXISMOTION and joy_ok_p2 and event.axis == 0:
+                    ax = event.value
+                    if ax < -JOY_DEADZONE:
                         ctx.char_select_cursor = (ctx.char_select_cursor - 1) % len(ctx.characters)
-                elif ax > JOY_DEADZONE:
-                    ctx.char_select_cursor = (ctx.char_select_cursor + 1) % len(ctx.characters)
-                    if ctx.char_select_phase == "p2" and ctx.characters[ctx.char_select_cursor] == ctx.p1_character_choice:
+                        if ctx.characters[ctx.char_select_cursor] == ctx.p1_character_choice:
+                            ctx.char_select_cursor = (ctx.char_select_cursor - 1) % len(ctx.characters)
+                    elif ax > JOY_DEADZONE:
                         ctx.char_select_cursor = (ctx.char_select_cursor + 1) % len(ctx.characters)
-            if event.type == pygame.JOYBUTTONDOWN and n_joy > 0 and event.joy in (0, 1) and event.button in (JOY_BTN_JUMP, JOY_BTN_START):
-                self._confirm(ctx)
-                return
+                        if ctx.characters[ctx.char_select_cursor] == ctx.p1_character_choice:
+                            ctx.char_select_cursor = (ctx.char_select_cursor + 1) % len(ctx.characters)
+                if event.type == pygame.JOYBUTTONDOWN and joy_ok_p2 and event.button in (JOY_BTN_JUMP, JOY_BTN_START):
+                    self._confirm(ctx)
+                    return
         if not ctx.running:
             return
         self._draw(ctx)

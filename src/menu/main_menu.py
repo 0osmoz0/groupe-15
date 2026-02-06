@@ -122,7 +122,7 @@ class MainMenu:
             if event.key in (pygame.K_RETURN, pygame.K_a):
                 return self.options[self._cursor]
 
-        if event.type == pygame.JOYAXISMOTION and joystick_count > 0 and event.joy in (0, 1):
+        if event.type == pygame.JOYAXISMOTION and joystick_count > 0 and event.joy == 0:
             key = (event.joy, event.axis)
             prev = self._axis_prev.get(key, 0.0)
             val = event.value
@@ -142,7 +142,7 @@ class MainMenu:
         if (
             event.type == pygame.JOYBUTTONDOWN
             and joystick_count > 0
-            and event.joy in (0, 1)
+            and event.joy == 0
             and event.button in self.joy_confirm_buttons
         ):
             return self.options[self._cursor]
@@ -150,11 +150,11 @@ class MainMenu:
         return None
 
     def update(self, joystick_count: int) -> None:
-        """Met à jour l'état du stick par manette ; si 2 manettes, utilise le cache de polling (macOS)."""
+        """Met à jour l'état du stick (manette P1 uniquement pour le menu)."""
         if joystick_count <= 0:
             self._axis_prev.clear()
             return
-        for joy_id in (0, 1):
+        for joy_id in (0,):
             if joy_id >= joystick_count:
                 continue
             if joystick_count >= 2:
