@@ -46,7 +46,6 @@ pygame.joystick.init()
 for _ in range(35):
     pygame.event.pump()
     time.sleep(0.05)
-pygame.joystick.quit()
 pygame.joystick.init()
 for _ in range(10):
     pygame.event.pump()
@@ -85,21 +84,15 @@ from game.screens import (
 fullscreen_mode = True
 screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.FULLSCREEN if fullscreen_mode else 0)
 # Ré-init manette après création de la fenêtre finale (macOS)
-pygame.joystick.quit()
 pygame.joystick.init()
-for _ in range(10):
-    pygame.event.pump()
-    time.sleep(0.02)
-# Attendre jusqu'à 2 s qu'au moins une manette soit détectée (Bluetooth peut être lent)
-for _ in range(10):
-    if pygame.joystick.get_count() >= 1:
-        break
-    pygame.joystick.quit()
-    pygame.joystick.init()
+# Attendre jusqu'à ~2 s qu'une manette soit détectée (Bluetooth lent) : on pompe les events sans refaire quit/init
+for _ in range(40):
     for __ in range(5):
         pygame.event.pump()
-        time.sleep(0.02)
-    time.sleep(0.2)
+        time.sleep(0.01)
+    if pygame.joystick.get_count() >= 1:
+        break
+    time.sleep(0.05)
 n_joy_start = pygame.joystick.get_count()
 if DEBUG_JOYSTICK:
     print(f"[Manette DBG] Démarrage: get_count()={n_joy_start} (après attente 2s max)")

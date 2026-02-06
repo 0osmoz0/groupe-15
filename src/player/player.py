@@ -147,6 +147,7 @@ class Player(pygame.sprite.Sprite):
         self.coyote_frames = 0
         self.jump_buffer_frames = 0
         self._jump_held = False
+        self._jump_held_prev = False  # pour détecter "bouton saut vient d'être enfoncé" (double jump manette)
 
         self.stats = Stats(weight=1.0)
         self.lives = 3
@@ -259,6 +260,7 @@ class Player(pygame.sprite.Sprite):
             return
         if self.hitstun > 0:
             return
+        jump_prev = self._jump_held_prev
         self.speed_x = 0
         move = self.move_speed if self.on_ground else self.move_speed * self.air_move_mult
 
@@ -272,6 +274,9 @@ class Player(pygame.sprite.Sprite):
                 self.speed_x = move
                 self.facing_right = True
             self.drop_through = down and jump_held
+            # Double jump manette : si on est en l'air et le bouton saut vient d'être enfoncé (front montant), déclencher le saut
+            if jump_held and not jump_prev and not self.on_ground and self.jump_count < self.jump_max:
+                self.jump()
             self._jump_held = jump_held
         else:
             keys = pygame.key.get_pressed()
@@ -283,6 +288,7 @@ class Player(pygame.sprite.Sprite):
                 self.facing_right = True
             self.drop_through = keys[self.controls.get("down", pygame.K_s)] and keys[self.controls["jump"]]
             self._jump_held = keys[self.controls["jump"]]
+        self._jump_held_prev = self._jump_held
 
     def start_attack(self, attack_id: str, hitboxes_group, charge_mult: float = 1.0):
         hb = HitboxSprite(owner=self, attack_id=attack_id, charge_mult=charge_mult)
