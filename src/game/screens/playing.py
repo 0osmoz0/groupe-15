@@ -7,21 +7,48 @@ from game.config import (
 from game.hud import draw_player_ping, draw_portraits, draw_percent_hud
 from game.input_handling import get_player_input_state, start_attack_from_input, get_joystick_poll_events, get_effective_joy_count, _debug_joy_global_frame, safe_event_get
 from combat.projectile_sprite import ProjectileSprite
-from player.player import DISTANCE_ATTACK_COOLDOWN_FRAMES, DISTANCE_ATTACK_BURST_DELAY
+from player.player import (
+    DISTANCE_ATTACK_COOLDOWN_FRAMES,
+    DISTANCE_ATTACK_BURST_DELAY,
+    DISTANCE_ATTACK_BURST_SIZE,
+    DISTANCE_ATTACK_NUM_BURSTS,
+)
 
 
 class PlayingScreen:
     def run(self, ctx):
+        # Musique de combat (Sonic Unleashed - Endless Possibility)
+        if getattr(ctx.assets, "combat_music_loaded", False) and not getattr(ctx, "combat_music_playing", False):
+            try:
+                if getattr(ctx, "menu_music_playing", False):
+                    pygame.mixer.music.stop()
+                    ctx.menu_music_playing = False
+                pygame.mixer.music.load(ctx.assets.combat_music_path)
+                pygame.mixer.music.set_volume(0.19)
+                pygame.mixer.music.play(-1)
+                ctx.combat_music_playing = True
+            except Exception:
+                pass
         # Conditions de victoire
         if ctx.player1.lives <= 0 and ctx.player2.lives > 0 and getattr(ctx.player2, "character", None) == "nick":
             ctx.game_state = "nick_wins"
             ctx.nick_win_frame_index = 0
             ctx.nick_win_frame_timer_ms = 0
+            try:
+                pygame.mixer.music.stop()
+            except Exception:
+                pass
+            ctx.combat_music_playing = False
             return
         if ctx.player2.lives <= 0 and ctx.player1.lives > 0 and getattr(ctx.player1, "character", "judy") == "judy":
             ctx.game_state = "judy_wins"
             ctx.judy_win_frame_index = 0
             ctx.judy_win_frame_timer_ms = 0
+            try:
+                pygame.mixer.music.stop()
+            except Exception:
+                pass
+            ctx.combat_music_playing = False
             return
 
         events = safe_event_get()
@@ -80,7 +107,7 @@ class PlayingScreen:
                             ProjectileSprite(ctx.player1, ctx.hitboxes)
                             ctx.player1.start_distance_attack_animation()
                             ctx.player1._distance_attack_cooldown_remaining = DISTANCE_ATTACK_COOLDOWN_FRAMES
-                            ctx.player1._distance_burst_remaining = 2
+                            ctx.player1._distance_burst_remaining = DISTANCE_ATTACK_BURST_SIZE * DISTANCE_ATTACK_NUM_BURSTS - 1
                             ctx.player1._distance_burst_timer = DISTANCE_ATTACK_BURST_DELAY
                 if event.key == ctx.player2.controls.get("special") and ctx.player2.lives > 0:
                     pl, pr, pu, pd = get_player_input_state(ctx.player2)
@@ -92,7 +119,7 @@ class PlayingScreen:
                             ProjectileSprite(ctx.player2, ctx.hitboxes)
                             ctx.player2.start_distance_attack_animation()
                             ctx.player2._distance_attack_cooldown_remaining = DISTANCE_ATTACK_COOLDOWN_FRAMES
-                            ctx.player2._distance_burst_remaining = 2
+                            ctx.player2._distance_burst_remaining = DISTANCE_ATTACK_BURST_SIZE * DISTANCE_ATTACK_NUM_BURSTS - 1
                             ctx.player2._distance_burst_timer = DISTANCE_ATTACK_BURST_DELAY
             if event.type == pygame.JOYAXISMOTION and DEBUG_JOYSTICK_VERBOSE and abs(event.value) > JOY_DEADZONE:
                 print(f"[Manette EVENT] JOYAXISMOTION joy={event.joy} axis={event.axis} value={event.value:.2f}")
@@ -116,7 +143,7 @@ class PlayingScreen:
                                 ProjectileSprite(ctx.player1, ctx.hitboxes)
                                 ctx.player1.start_distance_attack_animation()
                                 ctx.player1._distance_attack_cooldown_remaining = DISTANCE_ATTACK_COOLDOWN_FRAMES
-                                ctx.player1._distance_burst_remaining = 2
+                                ctx.player1._distance_burst_remaining = DISTANCE_ATTACK_BURST_SIZE * DISTANCE_ATTACK_NUM_BURSTS - 1
                                 ctx.player1._distance_burst_timer = DISTANCE_ATTACK_BURST_DELAY
                 elif joy_id == 1 and n_joy >= 2:
                     if btn == JOY_BTN_JUMP: ctx.player2.jump()
@@ -133,18 +160,29 @@ class PlayingScreen:
                                 ProjectileSprite(ctx.player2, ctx.hitboxes)
                                 ctx.player2.start_distance_attack_animation()
                                 ctx.player2._distance_attack_cooldown_remaining = DISTANCE_ATTACK_COOLDOWN_FRAMES
-                                ctx.player2._distance_burst_remaining = 2
+                                ctx.player2._distance_burst_remaining = DISTANCE_ATTACK_BURST_SIZE * DISTANCE_ATTACK_NUM_BURSTS - 1
                                 ctx.player2._distance_burst_timer = DISTANCE_ATTACK_BURST_DELAY
 
-        # Rafale : tirer les projectiles 2 et 3 après le délai
+        # Rafale : décrémenter le timer puis tirer les projectiles 2 à 9 après le délai
         for player in (ctx.player1, ctx.player2):
-            if getattr(player, "_distance_burst_remaining", 0) > 0 and getattr(player, "_distance_burst_timer", 0) <= 0:
-                ProjectileSprite(player, ctx.hitboxes)
-                player._distance_burst_remaining -= 1
-                player._distance_burst_timer = DISTANCE_ATTACK_BURST_DELAY
+            burst_remaining = getattr(player, "_distance_burst_remaining", 0)
+            if burst_remaining > 0:
+                timer = getattr(player, "_distance_burst_timer", 0)
+                player._distance_burst_timer = max(0, timer - 1)
+                if player._distance_burst_timer <= 0:
+                    ProjectileSprite(player, ctx.hitboxes)
+                    player._distance_burst_remaining -= 1
+                    player._distance_burst_timer = DISTANCE_ATTACK_BURST_DELAY
 
         ctx.player1.handle_input()
         ctx.player2.handle_input()
+        # Secours double saut manette : si en l'air + bouton saut tenu et pas encore utilisé ce vol
+        for pl in (ctx.player1, ctx.player2):
+            if getattr(pl, "joystick", None) and not pl.on_ground and pl.jump_count < pl.jump_max:
+                joy_in = pl._get_joy_input()
+                if joy_in and joy_in[4] and not getattr(pl, "_did_air_jump_this_flight", True):
+                    pl.jump()
+                    pl._did_air_jump_this_flight = True
         ctx.player1.update([ctx.player2] + list(ctx.platforms))
         ctx.player2.update([ctx.player1] + list(ctx.platforms))
         ctx.hitboxes.update(list(ctx.players))

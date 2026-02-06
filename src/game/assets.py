@@ -63,6 +63,7 @@ class GameAssets:
 
     def _load_maps(self):
         bg_dir = os.path.join(self.base_dir, "assets", "background map")
+        bp_dir = os.path.join(self.base_dir, "assets", "BG_perso")
         map_files = ("BG.png", "2.png", "3.png", "4.png")
         self.map_labels = ("Ville", "Jungle urbaine", "Tundra", "Savane")
         self.map_surfaces = []
@@ -80,6 +81,15 @@ class GameAssets:
                     fallback = pygame.Surface((self.world_w, self.world_h))
                     fallback.fill((40, 40, 60))
                     self.map_surfaces.append(fallback)
+        # Carte BG_perso (1_7.png) en plus
+        try:
+            img = pygame.image.load(os.path.join(bp_dir, "1_7.png")).convert()
+            self.map_surfaces.append(
+                pygame.transform.smoothscale(img, (self.world_w, self.world_h))
+            )
+            self.map_labels = self.map_labels + ("BG perso",)
+        except Exception:
+            pass
         if not self.map_surfaces:
             self.map_surfaces = [pygame.Surface((self.world_w, self.world_h))]
             self.map_surfaces[0].fill((40, 40, 60))
@@ -88,7 +98,11 @@ class GameAssets:
             bg_map = pygame.image.load(os.path.join(bg_dir, "BG_map.png")).convert()
             self.map_select_background = pygame.transform.smoothscale(bg_map, (self.screen_w, self.screen_h))
         except Exception:
-            self.map_select_background = None
+            try:
+                bg_map = pygame.image.load(os.path.join(bp_dir, "1_7.png")).convert()
+                self.map_select_background = pygame.transform.smoothscale(bg_map, (self.screen_w, self.screen_h))
+            except Exception:
+                self.map_select_background = None
 
     def _load_gifs(self):
         bp = os.path.join(self.base_dir, "assets", "BG_perso")
@@ -103,7 +117,11 @@ class GameAssets:
             title_img = pygame.image.load(os.path.join(bp, "1.png")).convert()
             self.title_screen = pygame.transform.smoothscale(title_img, (self.screen_w, self.screen_h))
         except Exception:
-            self.title_screen = None
+            try:
+                title_img = pygame.image.load(os.path.join(bp, "1_7.png")).convert()
+                self.title_screen = pygame.transform.smoothscale(title_img, (self.screen_w, self.screen_h))
+            except Exception:
+                self.title_screen = None
         try:
             char_bg = pygame.image.load(os.path.join(bp, "1_7.png")).convert()
             self.character_select_background = pygame.transform.smoothscale(char_bg, (self.screen_w, self.screen_h))
@@ -136,11 +154,26 @@ class GameAssets:
             self.menu_music_loaded = True
         except Exception:
             self.menu_music_loaded = False
+        self.combat_music_path = os.path.join(
+            self.base_dir, "assets", "song", "combat",
+            "Sonic Unleashed Final Boss - Dark Gaia Phase 2 - Endless Possibility.mp3"
+        )
+        self.combat_music_loaded = os.path.isfile(self.combat_music_path)
 
     def _load_counter(self):
-        """Countdown 3-2-1-GO désactivé : plus de chargement des sprites."""
+        """Countdown 3-2-1-GO : charge les assets counter/3.png, 2.png, 1.png, go.png."""
         self.counter_height = 180
+        counter_dir = os.path.join(self.base_dir, "assets", "counter")
+        order = ("3.png", "2.png", "1.png", "go.png")
         self.counter_surfaces = []
+        for fname in order:
+            try:
+                img = pygame.image.load(os.path.join(counter_dir, fname)).convert_alpha()
+                h = self.counter_height
+                w = max(1, int(img.get_width() * h / img.get_height()))
+                self.counter_surfaces.append(pygame.transform.smoothscale(img, (w, h)))
+            except Exception:
+                self.counter_surfaces.append(None)
 
     def _load_ping(self):
         ping_dir = os.path.join(self.base_dir, "assets", "Ping")

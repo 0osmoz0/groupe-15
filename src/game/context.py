@@ -31,10 +31,12 @@ class GameContext:
         # État global
         self.game_state = "main_menu"
         self.menu_music_playing = False
+        self.combat_music_playing = False
 
         # Map select
         self.selected_map_index = 0
         self.map_select_cursor = 0
+        self.map_select_ignore_confirm_frame = False
 
         # Character select
         self.char_select_phase = "p1"

@@ -43,7 +43,7 @@ time.sleep(0.3)
 print(f"🎮 Manettes détectées : {pygame.joystick.get_count()}")
 
 fullscreen_mode = True
-screen = pygame.display.set_mode((WIDTH, HEIGHT))
+screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.FULLSCREEN if fullscreen_mode else 0)
 clock = pygame.time.Clock()
 screen_w, screen_h = screen.get_size()
 world_w, world_h = screen_w * 2, screen_h * 2
@@ -174,7 +174,7 @@ while ctx.running:
     if ctx.game_state == "main_menu":
         if a.menu_music_loaded and not ctx.menu_music_playing:
             try:
-                pygame.mixer.music.set_volume(0.2)
+                pygame.mixer.music.set_volume(0.15)
                 pygame.mixer.music.play(-1)
                 ctx.menu_music_playing = True
             except Exception:
@@ -213,6 +213,8 @@ while ctx.running:
             if selected == "VERSUS":
                 ctx.game_state = "map_select"
                 ctx.map_select_cursor = 0
+                ctx.selected_map_index = 0
+                ctx.map_select_ignore_confirm_frame = True  # évite validation manette résiduelle (menu s'affiche)
                 ctx.char_select_phase = "p1"
                 ctx.char_select_cursor = 0
                 ctx.p1_character_choice = None

@@ -1,5 +1,4 @@
 """Écran de sélection de personnage (P1 puis P2)."""
-import sys
 import pygame
 from game.config import JOY_DEADZONE, JOY_BTN_JUMP, JOY_BTN_START
 from game.input_handling import get_joystick_poll_events, safe_event_get
@@ -61,33 +60,14 @@ class CharacterSelectScreen:
             ctx.assets.background = ctx.assets.map_surfaces[ctx.selected_map_index].copy()
             ctx.player1.set_character(ctx.p1_character_choice)
             ctx.player2.set_character(ctx.p2_character_choice)
-            if ctx.menu_music_playing:
-                try:
-                    pygame.mixer.music.stop()
-                    ctx.menu_music_playing = False
-                except Exception:
-                    pass
-            # Sur macOS, on saute l'intro vidéo (OpenCV = 2e SDL = manettes cassées)
+            # La musique du menu continue pendant les vidéos d'intro (arrêtée à la fin de l'intro)
+            # Vidéo d'intro après sélection : 1.mp4 si Judy P1, 1_2.mp4 si Nick P1
             if ctx.p1_character_choice == "judy" and ctx.p2_character_choice == "nick":
-                if sys.platform == "darwin":
-                    ctx.game_state = "versus_gif"
-                    ctx.versus_gif_frame_index = 0
-                    ctx.versus_gif_timer_ms = 0
-                    ctx.versus_gif_phase = "playing"
-                    ctx.wait_after_gif_timer_ms = 0
-                else:
-                    ctx.intro_video_filename = "1.mp4"
-                    ctx.game_state = "intro_video"
+                ctx.intro_video_filename = "1.mp4"
+                ctx.game_state = "intro_video"
             elif ctx.p1_character_choice == "nick" and ctx.p2_character_choice == "judy":
-                if sys.platform == "darwin":
-                    ctx.game_state = "versus_gif"
-                    ctx.versus_gif_frame_index = 0
-                    ctx.versus_gif_timer_ms = 0
-                    ctx.versus_gif_phase = "playing"
-                    ctx.wait_after_gif_timer_ms = 0
-                else:
-                    ctx.intro_video_filename = "1_2.mp4"
-                    ctx.game_state = "intro_video"
+                ctx.intro_video_filename = "1_2.mp4"
+                ctx.game_state = "intro_video"
             else:
                 ctx.game_state = "versus_gif"
                 ctx.versus_gif_frame_index = 0

@@ -1,6 +1,7 @@
 import math
 import os
 import pygame
+from game.config import JOY_DEADZONE
 from player.stats import Stats
 from combat.hitbox_sprite import HitboxSprite
 from combat.knockback import decay_launch_speed
@@ -27,14 +28,17 @@ def _load_walk_frames(character: str):
 
 
 def _load_attack_frames(character: str):
+    """Charge toutes les frames d'attaque (Nick: nick_atack 1-3, Judy: judy_attack_normal 1-6)."""
     base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     if character == "nick":
-        folder = os.path.join(base, "assets", "Nick", "nick_attack")
+        folder = os.path.join(base, "assets", "Nick", "nick_atack")
+        n_frames = 3
     else:
-        folder = os.path.join(base, "assets", "JUDY_HOPPS", "judy_hopps_attack")
+        folder = os.path.join(base, "assets", "JUDY_HOPPS", "judy_attack_normal")
+        n_frames = 6
     result = []
-    for variant in range(2):
-        path = os.path.join(folder, f"{variant + 1}.png")
+    for i in range(n_frames):
+        path = os.path.join(folder, f"{i + 1}.png")
         try:
             img = pygame.image.load(path).convert_alpha()
             h = SPRITE_HEIGHT
@@ -50,7 +54,7 @@ def _load_distance_attack_frame(character: str):
     if character == "nick":
         path = os.path.join(base, "assets", "Nick", "nick_distance_attack", "1.png")
     elif character == "judy":
-        path = os.path.join(base, "assets", "JUDY_HOPPS", "judy_distance_attack", "1.png")
+        path = os.path.join(base, "assets", "JUDY_HOPPS", "judy_distance", "1.png")
     else:
         return None
     try:
@@ -80,9 +84,10 @@ def _load_counter_frame(character: str):
 
 
 DISTANCE_ATTACK_DURATION = 28
-DISTANCE_ATTACK_COOLDOWN_FRAMES = 90
-DISTANCE_ATTACK_BURST_SIZE = 3
-DISTANCE_ATTACK_BURST_DELAY = 8
+DISTANCE_ATTACK_COOLDOWN_FRAMES = 0   # munition infinie
+DISTANCE_ATTACK_BURST_SIZE = 3        # 3 projectiles par rafale (délai entre chaque tir)
+DISTANCE_ATTACK_NUM_BURSTS = 1        # 1 rafale de 3 = 3 tirs au total
+DISTANCE_ATTACK_BURST_DELAY = 8       # frames entre chaque tir
 COUNTER_DURATION = 40
 
 
@@ -158,6 +163,8 @@ class Player(pygame.sprite.Sprite):
         self.coyote_frames = 0
         self.jump_buffer_frames = 0
         self._jump_held = False
+        self._did_air_jump_this_flight = False  # double saut manette (1 saut en l'air par vol)
+        self._jump_btn_prev = False  # état précédent du bouton saut (détection "just pressed")
 
         self.stats = Stats(weight=1.0)
         self.lives = 3
@@ -221,12 +228,12 @@ class Player(pygame.sprite.Sprite):
                 return None
         
         try:
-            dead = 0.35
-            
+            dead = JOY_DEADZONE
+
             # Axes analogiques
             ax0 = self.joystick.get_axis(0) if self.joystick.get_numaxes() > 0 else 0.0
             ax1 = self.joystick.get_axis(1) if self.joystick.get_numaxes() > 1 else 0.0
-            
+
             left = ax0 < -dead
             right = ax0 > dead
             up = ax1 < -dead
@@ -306,7 +313,13 @@ class Player(pygame.sprite.Sprite):
                 self.facing_right = True
             
             self.drop_through = down and jump_held
+            # Double saut manette : même logique que clavier = 2 appuis distincts (pas en restant appuyé)
+            jump_just_pressed = jump_held and not getattr(self, "_jump_btn_prev", False)
+            if not self.on_ground and self.jump_count < self.jump_max and not self._did_air_jump_this_flight and jump_just_pressed:
+                self.jump()
+                self._did_air_jump_this_flight = True
             self._jump_held = jump_held
+            self._jump_btn_prev = jump_held
         
         # ✅ FALLBACK CLAVIER
         else:
@@ -321,6 +334,7 @@ class Player(pygame.sprite.Sprite):
             
             self.drop_through = keys[self.controls.get("down", pygame.K_s)] and keys[self.controls["jump"]]
             self._jump_held = keys[self.controls["jump"]]
+            self._jump_btn_prev = keys[self.controls["jump"]]
 
     def start_attack(self, attack_id: str, hitboxes_group, charge_mult: float = 1.0):
         hb = HitboxSprite(owner=self, attack_id=attack_id, charge_mult=charge_mult)
@@ -362,9 +376,9 @@ class Player(pygame.sprite.Sprite):
             if self._attack_frame_timer >= ATTACK_ANIM_FRAME_DURATION:
                 self._attack_frame_timer = 0
                 self._attack_frame_index += 1
-            variant = self._attack_animation_variant
-            if variant < len(self._attack_frames) and self._attack_frames[variant] is not None:
-                frame = self._attack_frames[variant]
+            idx = min(self._attack_frame_index, len(self._attack_frames) - 1)
+            if idx >= 0 and self._attack_frames[idx] is not None:
+                frame = self._attack_frames[idx]
             else:
                 frame = self._walk_frames[0]
             flip_x = self.facing_right if self.character == "nick" else not self.facing_right
@@ -398,6 +412,7 @@ class Player(pygame.sprite.Sprite):
             mult = self.double_jump_mult if self.jump_count > 0 else 1.0
             self.speed_y = self.jump_force * mult
             self.jump_count += 1
+            self._did_air_jump_this_flight = True
             self.drop_through = False
             self.coyote_frames = 0
             self.jump_buffer_frames = 0
@@ -434,7 +449,7 @@ class Player(pygame.sprite.Sprite):
                 self.tumbling = False
                 self.state = "idle"
             if self.tumbling:
-                self.speed_x, self.speed_y = decay_launch_speed(self.speed_x, self.speed_y, self.gravity_for_kb)
+                self.speed_x, self.speed_y = decay_launch_speed(self.speed_x, self.speed_y)
             else:
                 self.speed_y += self.gravity_for_kb
         else:
@@ -529,6 +544,7 @@ class Player(pygame.sprite.Sprite):
                 self.coyote_frames = max(0, self.coyote_frames - 1)
             self.jump_buffer_frames = max(0, self.jump_buffer_frames - 1)
         else:
+            self._did_air_jump_this_flight = False
             self.coyote_frames = 0
             if self.jump_buffer_frames > 0 and self.jump_count < self.jump_max:
                 mult = self.double_jump_mult if self.jump_count > 0 else 1.0
