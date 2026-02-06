@@ -219,6 +219,13 @@ while ctx.running:
                 ctx.char_select_cursor = 0
                 ctx.p1_character_choice = None
                 ctx.p2_character_choice = None
+                # Réinitialiser la partie : vies, positions, dégâts, projectiles (évite de revoir l’ancien vainqueur)
+                player1.lives = 3
+                player2.lives = 3
+                player1.respawn()
+                player2.respawn()
+                ctx.hitboxes.empty()
+                ctx.paused = False
                 break
             
             if selected == "PARAMETRES":
