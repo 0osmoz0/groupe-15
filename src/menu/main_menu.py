@@ -40,31 +40,36 @@ class MainMenu:
         # Valeurs précédentes par (joy_id, axis) pour que les deux manettes fonctionnent
         self._axis_prev: dict = {}  # (joy_id, axis) -> float
 
-        self._font_title = self._create_font(120, bold=True)
-        self._font_option = self._create_font(56, bold=True)
-        self._font_hint = self._create_font(28, bold=False)
+        self._font_title = self._create_font(72, bold=True)
+        self._font_option = self._create_font(48, bold=True)
+        self._font_hint = self._create_font(22, bold=False)
 
-        # Style Smash Bros : rectangles rouge / bordeaux, bordure jaune pour la sélection
-        self._color_rect_selected = (200, 45, 45)      # rouge vif (option sélectionnée)
-        self._color_rect_normal = (100, 28, 28)       # bordeaux (options non sélectionnées)
-        self._color_border_glow = (255, 220, 80)      # bordure jaune / or (sélection)
-        self._color_border_glow_outer = (255, 200, 50)
-        self._color_text = (255, 255, 255)            # texte blanc
-        self._color_hint = (180, 180, 180)
-        self._color_bg_fallback = (20, 20, 40)
+        # Palette moderne : fond sombre, cartes avec ombre, sélection dorée/ambre
+        self._color_rect_selected = (218, 165, 32)    # doré / amber (sélection)
+        self._color_rect_normal = (52, 58, 72)        # slate foncé (non sélectionné)
+        self._color_border_glow = (255, 215, 100)    # bordure or clair
+        self._color_border_glow_outer = (255, 235, 160)
+        self._color_text = (255, 252, 245)           # blanc cassé
+        self._color_text_shadow = (30, 28, 35)
+        self._color_hint = (160, 165, 175)
+        self._color_bg_fallback = (28, 32, 42)
+        self._color_card_shadow = (15, 18, 25)
+        self._color_overlay = (0, 0, 0, 140)          # overlay semi-transparent (alpha pour surface)
 
-        # Positionnement type Smash Bros : bloc à gauche, grand rect en haut + grille 2x2 en dessous
-        self._menu_margin_left = int(self.screen_width * 0.06)
-        self._menu_margin_top = int(self.screen_height * 0.18)
-        self._gap = 16
-        self._rect_border = 5
+        # Positionnement : bloc gauche, espacement généreux
+        self._menu_margin_left = int(self.screen_width * 0.07)
+        self._menu_margin_top = int(self.screen_height * 0.22)
+        self._gap = 20
+        self._rect_border = 4
+        self._radius_big = 16
+        self._radius_small = 12
+        self._shadow_offset = 6
         # Grand rectangle (option sélectionnée en haut)
-        self._big_width = int(self.screen_width * 0.45)
-        self._big_height = int(self.screen_height * 0.14)
+        self._big_width = int(self.screen_width * 0.42)
+        self._big_height = int(self.screen_height * 0.12)
         # Petits rectangles (grille 2x2)
         self._small_width = (self._big_width - self._gap) // 2
-        self._small_height = int(self._big_height * 0.65)
-        # Grille : 2 colonnes, 2 lignes (3 options + 1 vide)
+        self._small_height = int(self._big_height * 0.72)
         self._grid_cols = 2
         self._grid_rows = 2
 
@@ -185,27 +190,53 @@ class MainMenu:
                 except Exception:
                     pass
 
+    def _draw_rounded_card(self, screen: pygame.Surface, rect: pygame.Rect, fill_color: tuple, radius: int, shadow: bool = True) -> None:
+        """Dessine une carte avec ombre portée et coins arrondis."""
+        if shadow:
+            shadow_rect = rect.move(self._shadow_offset, self._shadow_offset)
+            pygame.draw.rect(screen, self._color_card_shadow, shadow_rect, border_radius=radius + 2)
+        pygame.draw.rect(screen, fill_color, rect, border_radius=radius)
+
+    def _draw_text_with_shadow(self, screen: pygame.Surface, text: str, font: pygame.font.Font, center: Tuple[int, int], color: tuple = None) -> None:
+        """Affiche un texte avec ombre légère pour la lisibilité."""
+        color = color or self._color_text
+        shadow_surf = font.render(text, True, self._color_text_shadow)
+        text_surf = font.render(text, True, color)
+        sw, sh = shadow_surf.get_size()
+        tx, ty = center[0] - sw // 2, center[1] - sh // 2
+        screen.blit(shadow_surf, (tx + 2, ty + 2))
+        screen.blit(text_surf, (tx, ty))
+
     def draw(self, screen: pygame.Surface) -> None:
-        """Dessine le menu (positionnement Smash : grand rect en haut à gauche + grille 2x2 en dessous)."""
+        """Dessine le menu : fond, titre, cartes avec ombres et barre d’aide."""
         if self.background is not None:
             screen.blit(self.background, (0, 0))
+            # Overlay léger en bas à gauche pour liser le bloc menu
+            overlay = pygame.Surface((self._big_width + self._menu_margin_left + 100, self.screen_height))
+            overlay.set_alpha(70)
+            overlay.fill((0, 0, 0))
+            screen.blit(overlay, (0, 0))
         else:
             screen.fill(self._color_bg_fallback)
 
-        # Titre au-dessus du bloc menu : image (ex. Gaming SMASH-TOPIA) ou texte
+        title_y = self._menu_margin_top - 56
+        # Titre : image ou texte avec ombre
         if self.title_image is not None:
-            title_rect = self.title_image.get_rect(
-                midleft=(self._menu_margin_left, self._menu_margin_top - 50),
-            )
+            title_rect = self.title_image.get_rect(midleft=(self._menu_margin_left, title_y))
+            shadow_rect = title_rect.move(3, 3)
+            shadow = pygame.Surface((title_rect.width + 6, title_rect.height + 6))
+            shadow.set_alpha(80)
+            shadow.fill((0, 0, 0))
+            screen.blit(shadow, shadow_rect.topleft)
             screen.blit(self.title_image, title_rect)
         else:
             title_surf = self._font_title.render(self.title, True, self._color_text)
-            title_rect = title_surf.get_rect(
-                midleft=(self._menu_margin_left, self._menu_margin_top - 50),
-            )
-            screen.blit(title_surf, title_rect)
+            title_shadow = self._font_title.render(self.title, True, self._color_text_shadow)
+            tr = title_surf.get_rect(midleft=(self._menu_margin_left, title_y))
+            screen.blit(title_shadow, tr.move(2, 2))
+            screen.blit(title_surf, tr)
 
-        # Grand rectangle en haut : fond = fond_play (VERSUS), PARAM (PARAMETRES), exit (QUITTER) ou couleur unie
+        # Grande carte (option sélectionnée)
         big_rect = pygame.Rect(
             self._menu_margin_left,
             self._menu_margin_top,
@@ -213,7 +244,6 @@ class MainMenu:
             self._big_height,
         )
         selected_label = self.options[self._cursor]
-        is_big_selected = True
         bg_surface = None
         if self._cursor == 0 and self.big_rect_background is not None:
             bg_surface = self.big_rect_background
@@ -221,23 +251,26 @@ class MainMenu:
             bg_surface = self.big_rect_background_param
         elif self._cursor == 2 and self.big_rect_background_quit is not None:
             bg_surface = self.big_rect_background_quit
+
+        fill_big = self._color_rect_selected
+        self._draw_rounded_card(screen, big_rect, fill_big, self._radius_big)
         if bg_surface is not None:
             bg_scaled = pygame.transform.smoothscale(bg_surface, (self._big_width, self._big_height))
             screen.blit(bg_scaled, big_rect.topleft)
-        else:
-            fill_color = self._color_rect_selected if is_big_selected else self._color_rect_normal
-            pygame.draw.rect(screen, fill_color, big_rect, border_radius=6)
-        if is_big_selected:
-            for border_w, color in [(self._rect_border + 2, self._color_border_glow_outer), (self._rect_border, self._color_border_glow)]:
-                outer = big_rect.inflate(border_w * 2, border_w * 2)
-                pygame.draw.rect(screen, color, outer, width=border_w, border_radius=8)
-        big_text = self._font_option.render(selected_label, True, self._color_text)
-        big_text_rect = big_text.get_rect(center=big_rect.center)
-        screen.blit(big_text, big_text_rect)
+            # Voile sombre pour garder le texte lisible
+            overlay_card = pygame.Surface((self._big_width, self._big_height))
+            overlay_card.set_alpha(75)
+            overlay_card.fill((0, 0, 0))
+            screen.blit(overlay_card, big_rect.topleft)
+        # Bordure de sélection
+        for border_w, color in [(self._rect_border + 2, self._color_border_glow_outer), (self._rect_border, self._color_border_glow)]:
+            outer = big_rect.inflate(border_w * 2, border_w * 2)
+            pygame.draw.rect(screen, color, outer, width=border_w, border_radius=self._radius_big + 2)
+        self._draw_text_with_shadow(screen, selected_label, self._font_option, big_rect.center)
 
-        # Grille 2x2 de petits rectangles en dessous
+        # Grille 2x2 de cartes
         grid_start_y = self._menu_margin_top + self._big_height + self._gap
-        font_small = self._create_font(44, bold=True)
+        font_small = self._create_font(36, bold=True)
         for i in range(len(self.options)):
             row, col = i // self._grid_cols, i % self._grid_cols
             small_rect = pygame.Rect(
@@ -248,21 +281,22 @@ class MainMenu:
             )
             is_selected = i == self._cursor
             fill_color = self._color_rect_selected if is_selected else self._color_rect_normal
-            pygame.draw.rect(screen, fill_color, small_rect, border_radius=4)
+            self._draw_rounded_card(screen, small_rect, fill_color, self._radius_small)
             if is_selected:
-                for border_w, color in [(self._rect_border + 1, self._color_border_glow_outer), (self._rect_border - 1, self._color_border_glow)]:
+                for border_w, color in [(self._rect_border + 1, self._color_border_glow_outer), (self._rect_border, self._color_border_glow)]:
                     outer = small_rect.inflate(border_w * 2, border_w * 2)
-                    pygame.draw.rect(screen, color, outer, width=max(1, border_w), border_radius=5)
+                    pygame.draw.rect(screen, color, outer, width=max(1, border_w), border_radius=self._radius_small + 2)
             opt_surf = font_small.render(self.options[i], True, self._color_text)
             opt_rect = opt_surf.get_rect(center=small_rect.center)
             screen.blit(opt_surf, opt_rect)
 
-        # Barre d'info en bas (style Smash)
-        bar_height = 42
+        # Barre d’aide en bas : discrète, coins arrondis
+        bar_height = 36
         bar_rect = pygame.Rect(0, self.screen_height - bar_height, self.screen_width, bar_height)
-        pygame.draw.rect(screen, (20, 20, 20), bar_rect)
+        pygame.draw.rect(screen, (38, 42, 52), bar_rect)
+        pygame.draw.line(screen, (60, 65, 80), (0, self.screen_height - bar_height), (self.screen_width, self.screen_height - bar_height), 1)
         hint = self._font_hint.render(
-            "Haut/Bas/Gauche/Droite : choisir   A / Entree : valider",
+            "Déplacer : flèches ou stick   ·   Valider : Entrée ou A",
             True,
             self._color_hint,
         )
