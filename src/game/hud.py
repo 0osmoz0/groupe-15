@@ -66,13 +66,17 @@ def draw_percent_hud(surface, player, x: int, y: int, assets, align_left: bool =
             surface.blit(text_stocks, r_stocks)
 
 
-def draw_portraits(surface, assets, screen_w: int, hud_y: int):
-    """Dessine les portraits Judy et Nick en bas du HUD."""
+def draw_portraits(surface, assets, screen_w: int, hud_y: int, player1=None, player2=None):
+    """Dessine les portraits P1 à gauche, P2 à droite (selon qui est Nick/Judy)."""
     portrait_bottom = hud_y - 25
     margin = assets.portrait_side_margin
-    if assets.judy_portrait:
-        r = assets.judy_portrait.get_rect(bottomleft=(margin, portrait_bottom))
-        surface.blit(assets.judy_portrait, r.topleft)
-    if assets.nick_portrait:
-        r = assets.nick_portrait.get_rect(bottomright=(screen_w - margin, portrait_bottom))
-        surface.blit(assets.nick_portrait, r.topleft)
+    char1 = getattr(player1, "character", None) if player1 else "judy"
+    char2 = getattr(player2, "character", None) if player2 else "nick"
+    left_portrait = assets.nick_portrait if char1 == "nick" else assets.judy_portrait
+    right_portrait = assets.judy_portrait if char2 == "judy" else assets.nick_portrait
+    if left_portrait:
+        r = left_portrait.get_rect(bottomleft=(margin, portrait_bottom))
+        surface.blit(left_portrait, r.topleft)
+    if right_portrait:
+        r = right_portrait.get_rect(bottomright=(screen_w - margin, portrait_bottom))
+        surface.blit(right_portrait, r.topleft)

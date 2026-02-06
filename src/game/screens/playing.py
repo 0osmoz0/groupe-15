@@ -30,11 +30,8 @@ class PlayingScreen:
                 ctx.combat_music_playing = True
             except Exception:
                 pass
-        # Conditions de victoire
-        if ctx.player1.lives <= 0 and ctx.player2.lives > 0 and getattr(ctx.player2, "character", None) == "nick":
-            ctx.game_state = "nick_wins"
-            ctx.nick_win_frame_index = 0
-            ctx.nick_win_frame_timer_ms = 0
+        # Conditions de victoire : selon le gagnant (P1 ou P2) et son personnage
+        def _start_win_music():
             try:
                 pygame.mixer.music.stop()
                 if getattr(ctx.assets, "win_music_loaded", False):
@@ -43,19 +40,17 @@ class PlayingScreen:
                     pygame.mixer.music.play(0)
             except Exception:
                 pass
-            ctx.combat_music_playing = False
-            return
-        if ctx.player2.lives <= 0 and ctx.player1.lives > 0 and getattr(ctx.player1, "character", "judy") == "judy":
-            ctx.game_state = "judy_wins"
+
+        if ctx.player1.lives <= 0 and ctx.player2.lives > 0:
+            # P2 gagne → écran selon le perso de P2
+            winner_nick = getattr(ctx.player2, "character", None) == "nick"
+            ctx.game_state = "nick_wins" if winner_nick else "judy_wins"
+            ctx.nick_win_frame_index = 0
+            ctx.nick_win_frame_timer_ms = 0
             ctx.judy_win_frame_index = 0
             ctx.judy_win_frame_timer_ms = 0
-            try:
-                pygame.mixer.music.stop()
-                if getattr(ctx.assets, "win_music_loaded", False):
-                    pygame.mixer.music.load(ctx.assets.win_music_path)
-                    pygame.mixer.music.set_volume(0.15)
-                    pygame.mixer.music.play(0)
-                # En plus : un des deux sons Judy au hasard (1 fois sur 2 chacun)
+            _start_win_music()
+            if not winner_nick:
                 paths = getattr(ctx.assets, "judy_win_sound_paths", [])
                 loaded = getattr(ctx.assets, "judy_win_sounds_loaded", [])
                 if paths and loaded:
@@ -67,8 +62,29 @@ class PlayingScreen:
                             snd.play()
                         except Exception:
                             pass
-            except Exception:
-                pass
+            ctx.combat_music_playing = False
+            return
+        if ctx.player2.lives <= 0 and ctx.player1.lives > 0:
+            # P1 gagne → écran selon le perso de P1
+            winner_nick = getattr(ctx.player1, "character", None) == "nick"
+            ctx.game_state = "nick_wins" if winner_nick else "judy_wins"
+            ctx.nick_win_frame_index = 0
+            ctx.nick_win_frame_timer_ms = 0
+            ctx.judy_win_frame_index = 0
+            ctx.judy_win_frame_timer_ms = 0
+            _start_win_music()
+            if not winner_nick:
+                paths = getattr(ctx.assets, "judy_win_sound_paths", [])
+                loaded = getattr(ctx.assets, "judy_win_sounds_loaded", [])
+                if paths and loaded:
+                    idx = random.randrange(len(paths))
+                    if loaded[idx]:
+                        try:
+                            snd = pygame.mixer.Sound(paths[idx])
+                            snd.set_volume(1.0)
+                            snd.play()
+                        except Exception:
+                            pass
             ctx.combat_music_playing = False
             return
 
@@ -248,6 +264,6 @@ class PlayingScreen:
         margin = ctx.assets.portrait_side_margin
         draw_percent_hud(ctx.screen, ctx.player1, margin, percent_y, ctx.assets, align_left=True)
         draw_percent_hud(ctx.screen, ctx.player2, ctx.screen_w - margin, percent_y, ctx.assets, align_left=False)
-        draw_portraits(ctx.screen, ctx.assets, ctx.screen_w, hud_y)
+        draw_portraits(ctx.screen, ctx.assets, ctx.screen_w, hud_y, ctx.player1, ctx.player2)
         pygame.display.flip()
         ctx.clock.tick(60)

@@ -84,7 +84,7 @@ class GameAssets:
         bg_dir = os.path.join(self.base_dir, "assets", "background map")
         bp_dir = os.path.join(self.base_dir, "assets", "BG_perso")
         map_files = ("BG.png", "2.png", "3.png", "4.png")
-        self.map_labels = ("Ville", "Jungle urbaine", "Tundra", "Savane")
+        self.map_labels = ("Sahara Square", "Rainforest District", "Zootopie", "Tundra")
         self.map_surfaces = []
         for name in map_files:
             path = os.path.join(bg_dir, name)
@@ -100,15 +100,6 @@ class GameAssets:
                     fallback = pygame.Surface((self.world_w, self.world_h))
                     fallback.fill((40, 40, 60))
                     self.map_surfaces.append(fallback)
-        # Carte BG_perso (1_7.png) en plus
-        try:
-            img = pygame.image.load(os.path.join(bp_dir, "1_7.png")).convert()
-            self.map_surfaces.append(
-                pygame.transform.smoothscale(img, (self.world_w, self.world_h))
-            )
-            self.map_labels = self.map_labels + ("BG perso",)
-        except Exception:
-            pass
         if not self.map_surfaces:
             self.map_surfaces = [pygame.Surface((self.world_w, self.world_h))]
             self.map_surfaces[0].fill((40, 40, 60))
