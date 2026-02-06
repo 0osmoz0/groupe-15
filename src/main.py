@@ -199,6 +199,10 @@ while ctx.running:
             if selected == "VERSUS":
                 ctx.game_state = "map_select"
                 ctx.map_select_cursor = 0
+                ctx.map_select_cursor_p1 = 0
+                ctx.map_select_cursor_p2 = 0
+                ctx.map_select_p1_confirmed = False
+                ctx.map_select_p2_confirmed = False
                 ctx.selected_map_index = 0
                 ctx.map_select_ignore_confirm_frame = True
                 ctx.char_select_phase = "p1"

@@ -32,6 +32,10 @@ class GameContext:
 
         self.selected_map_index = 0
         self.map_select_cursor = 0
+        self.map_select_cursor_p1 = 0
+        self.map_select_cursor_p2 = 0
+        self.map_select_p1_confirmed = False
+        self.map_select_p2_confirmed = False
         self.map_select_ignore_confirm_frame = False
 
         self.char_select_phase = "p1"
