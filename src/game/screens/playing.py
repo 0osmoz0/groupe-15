@@ -232,9 +232,31 @@ class PlayingScreen:
             if event.type == pygame.JOYAXISMOTION and DEBUG_JOYSTICK_VERBOSE and abs(event.value) > JOY_DEADZONE:
                 print(f"[Manette EVENT] JOYAXISMOTION joy={event.joy} axis={event.axis} value={event.value:.2f}")
             if event.type == pygame.JOYBUTTONDOWN:
+                joy_id, btn = event.joy, event.button
+                if joy_id == 0 and btn in (JOY_BTN_COUNTER, JOY_BTN_COUNTER_ALT):
+                    seq = getattr(ctx, "_cheat_joy_seq", [])
+                    t = pygame.time.get_ticks()
+                    if t - getattr(ctx, "_cheat_joy_last_time", 0) > 2000:
+                        seq = []
+                    ctx._cheat_joy_last_time = t
+                    seq.append(btn)
+                    if len(seq) > 5:
+                        seq.pop(0)
+                    ctx._cheat_joy_seq = seq
+                    code_inv = (JOY_BTN_COUNTER, JOY_BTN_COUNTER_ALT, JOY_BTN_COUNTER)
+                    code_dmg = (JOY_BTN_COUNTER_ALT, JOY_BTN_COUNTER, JOY_BTN_COUNTER_ALT)
+                    if tuple(seq) == code_inv:
+                        ctx.player1.cheat_invincible_until = t + 10000
+                        ctx._cheat_joy_seq = []
+                        continue
+                    if tuple(seq) == code_dmg:
+                        ctx.player1.cheat_super_damage_until = t + 10000
+                        ctx._cheat_joy_seq = []
+                        continue
+                    if len(seq) >= 2:
+                        continue
                 if DEBUG_JOYSTICK or DEBUG_JOYSTICK_VERBOSE:
                     print(f"[Manette EVENT] JOYBUTTONDOWN joy_id={event.joy} button={event.button}")
-                joy_id, btn = event.joy, event.button
                 if joy_id == 0:
                     if btn == JOY_BTN_JUMP: ctx.player1.jump()
                     elif btn == JOY_BTN_ATTACK and ctx.player1.lives > 0:
