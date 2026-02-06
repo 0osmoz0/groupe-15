@@ -22,6 +22,18 @@ PROJECTILE_CARROT_SIZE = 90
 _base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _judy_projectile_path = os.path.join(_base_dir, "assets", "JUDY_HOPPS", "munition", "munition.png")
 _nick_projectile_path = os.path.join(_base_dir, "assets", "Nick", "munition_nick", "munition.png")
+_distance_attack_sound = None
+
+def _get_distance_attack_sound():
+    global _distance_attack_sound
+    if _distance_attack_sound is None:
+        path = os.path.join(_base_dir, "assets", "song", "combat", "distance_attack", "tilt-attack.wav")
+        try:
+            _distance_attack_sound = pygame.mixer.Sound(path)
+        except Exception:
+            _distance_attack_sound = False
+    return _distance_attack_sound if _distance_attack_sound else None
+
 _judy_projectile_image = None
 _nick_projectile_image = None
 
@@ -87,6 +99,13 @@ class ProjectileSprite(pygame.sprite.Sprite):
 
         self.rect = self.image.get_rect(center=(start_x, start_y))
         hitboxes_group.add(self)
+        snd = _get_distance_attack_sound()
+        if snd is not None:
+            try:
+                snd.set_volume(0.35)
+                snd.play()
+            except Exception:
+                pass
 
     def update(self, potential_victims=None):
         potential_victims = potential_victims or []

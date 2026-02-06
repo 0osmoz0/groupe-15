@@ -12,7 +12,8 @@ JOY_BTN_JUMP = 0      # X (PS4) / A (Xbox)
 JOY_BTN_SPECIAL = 1   # Cercle / B
 JOY_BTN_ATTACK = 2    # Carré / X
 JOY_BTN_GRAB = 3      # Triangle / Y
-JOY_BTN_COUNTER = 4   # L1 / LB
+JOY_BTN_COUNTER = 5   # L1 / LB — Parade (contre) — pas 4 (Share sur PS4)
+JOY_BTN_COUNTER_ALT = 7   # L2 / LT — Parade alternative
 JOY_BTN_START = 9     # Options (PS4) / Menu (Xbox)
 
 # Caméra

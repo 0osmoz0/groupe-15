@@ -1,7 +1,8 @@
 """État de jeu principal (combat, caméra, HUD)."""
+import random
 import pygame
 from game.config import (
-    CAMERA_LERP, JOY_DEADZONE, JOY_BTN_JUMP, JOY_BTN_ATTACK, JOY_BTN_GRAB, JOY_BTN_COUNTER, JOY_BTN_SPECIAL,
+    CAMERA_LERP, JOY_DEADZONE, JOY_BTN_JUMP, JOY_BTN_ATTACK, JOY_BTN_GRAB, JOY_BTN_COUNTER, JOY_BTN_COUNTER_ALT, JOY_BTN_SPECIAL,
     DEBUG_JOYSTICK, DEBUG_JOYSTICK_VERBOSE, DEBUG_JOYSTICK_VERBOSE_INTERVAL,
 )
 from game.hud import draw_player_ping, draw_portraits, draw_percent_hud
@@ -24,7 +25,7 @@ class PlayingScreen:
                     pygame.mixer.music.stop()
                     ctx.menu_music_playing = False
                 pygame.mixer.music.load(ctx.assets.combat_music_path)
-                pygame.mixer.music.set_volume(0.19)
+                pygame.mixer.music.set_volume(0.10)
                 pygame.mixer.music.play(-1)
                 ctx.combat_music_playing = True
             except Exception:
@@ -76,7 +77,7 @@ class PlayingScreen:
         if n_joy_raw > 0:
             events.extend(get_joystick_poll_events(
                 JOY_DEADZONE,
-                (JOY_BTN_JUMP, JOY_BTN_ATTACK, JOY_BTN_SPECIAL, JOY_BTN_COUNTER, JOY_BTN_GRAB),
+                (JOY_BTN_JUMP, JOY_BTN_ATTACK, JOY_BTN_SPECIAL, JOY_BTN_COUNTER, JOY_BTN_COUNTER_ALT, JOY_BTN_GRAB),  # 5=L1, 7=L2 (parade)
             ))
         if DEBUG_JOYSTICK_VERBOSE and _debug_joy_global_frame > 0 and _debug_joy_global_frame % DEBUG_JOYSTICK_VERBOSE_INTERVAL == 0:
             print(f"[Manette VERBOSE] frame={_debug_joy_global_frame} Playing: get_count()={n_joy} P1.joy_id={ctx.player1.joy_id} P2.joy_id={ctx.player2.joy_id} nb_events_manette={sum(1 for e in events if e.type in (pygame.JOYAXISMOTION, pygame.JOYBUTTONDOWN))}")
@@ -132,7 +133,7 @@ class PlayingScreen:
                     if btn == JOY_BTN_JUMP: ctx.player1.jump()
                     elif btn == JOY_BTN_ATTACK and ctx.player1.lives > 0:
                         start_attack_from_input(ctx.player1, ctx.hitboxes, "jab", "ftilt", "utilt", "dtilt", "nair", "fair", "bair", "uair", "dair")
-                    elif btn == JOY_BTN_COUNTER and ctx.player1.lives > 0: ctx.player1.start_counter()
+                    elif btn in (JOY_BTN_COUNTER, JOY_BTN_COUNTER_ALT) and ctx.player1.lives > 0: ctx.player1.start_counter()
                     elif btn == JOY_BTN_SPECIAL and ctx.player1.lives > 0:
                         pl, pr, pu, pd = get_player_input_state(ctx.player1)
                         if pl or pr: ctx.player1.start_attack("side_special", ctx.hitboxes)
@@ -149,7 +150,7 @@ class PlayingScreen:
                     if btn == JOY_BTN_JUMP: ctx.player2.jump()
                     elif btn == JOY_BTN_ATTACK and ctx.player2.lives > 0:
                         start_attack_from_input(ctx.player2, ctx.hitboxes, "jab", "ftilt", "utilt", "dtilt", "nair", "fair", "bair", "uair", "dair")
-                    elif btn == JOY_BTN_COUNTER and ctx.player2.lives > 0: ctx.player2.start_counter()
+                    elif btn in (JOY_BTN_COUNTER, JOY_BTN_COUNTER_ALT) and ctx.player2.lives > 0: ctx.player2.start_counter()
                     elif btn == JOY_BTN_SPECIAL and ctx.player2.lives > 0:
                         pl, pr, pu, pd = get_player_input_state(ctx.player2)
                         if pl or pr: ctx.player2.start_attack("side_special", ctx.hitboxes)
@@ -202,6 +203,22 @@ class PlayingScreen:
         ctx.hitboxes.draw(ctx.world_surface)
         ctx.platforms.draw(ctx.world_surface)
         ctx.players.draw(ctx.world_surface)
+        # Fumée d'impact aléatoire (smog) quand un joueur reçoit un coup — visible ~12 frames
+        smog_list = getattr(ctx.assets, "smog_surfaces", [])
+        valid_smog = [s for s in smog_list if s is not None] if smog_list else []
+        for pl in (ctx.player1, ctx.player2):
+            if getattr(pl, "_show_smoke", False) and valid_smog:
+                pl._show_smoke = False
+                pl._smoke_surface = random.choice(valid_smog)
+                pl._smoke_x, pl._smoke_y = pl.rect.centerx, pl.rect.centery
+                pl._smoke_frames_remaining = 12
+            if getattr(pl, "_smoke_frames_remaining", 0) > 0 and pl._smoke_surface is not None:
+                surf = pl._smoke_surface
+                w, h = surf.get_size()
+                x = pl._smoke_x - w // 2
+                y = pl._smoke_y - h // 2
+                ctx.world_surface.blit(surf, (x, y))
+                pl._smoke_frames_remaining -= 1
         draw_player_ping(ctx.world_surface, ctx.player1, ctx.assets.ping_p1, ctx.assets.ping_offset_above)
         draw_player_ping(ctx.world_surface, ctx.player2, ctx.assets.ping_p2, ctx.assets.ping_offset_above)
         ctx.screen.blit(ctx.world_surface, (0, 0), (int(ctx.camera_x), int(ctx.camera_y), ctx.screen_w, ctx.screen_h))

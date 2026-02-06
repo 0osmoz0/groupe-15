@@ -178,6 +178,10 @@ class Player(pygame.sprite.Sprite):
         self.gravity_for_kb = 0.05
         self.respawn_invuln = 0
         self.on_ground = False
+        self._show_smoke = False
+        self._smoke_frames_remaining = 0
+        self._smoke_surface = None
+        self._smoke_x = self._smoke_y = 0
 
     def respawn(self):
         self.rect.topleft = self.spawn_pos
@@ -423,6 +427,7 @@ class Player(pygame.sprite.Sprite):
     def receive_hit(self, hit_result):
         if self.respawn_invuln > 0:
             return
+        self._show_smoke = True
         self.stats.take_damage(hit_result.damage_dealt)
         self.speed_x = hit_result.velocity_x * self.KNOCKBACK_SCALE
         self.speed_y = hit_result.velocity_y * self.KNOCKBACK_SCALE

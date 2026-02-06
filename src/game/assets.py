@@ -60,6 +60,25 @@ class GameAssets:
         self._load_life_icons()
         self._load_font()
         self._load_platforms()
+        self._load_smog()
+
+    def _load_smog(self):
+        """Fumée d'impact (smog/1.png à 9.png) affichée aléatoirement quand un joueur reçoit un coup."""
+        self.smog_surfaces = []
+        smog_dir = os.path.join(self.base_dir, "assets", "smog")
+        self.smog_display_size = (160, 160)
+        for i in range(1, 10):
+            path = os.path.join(smog_dir, f"{i}.png")
+            try:
+                img = pygame.image.load(path).convert()
+                img.set_colorkey((0, 0, 0))
+                self.smog_surfaces.append(
+                    pygame.transform.smoothscale(img, self.smog_display_size)
+                )
+            except Exception:
+                pass
+        if not self.smog_surfaces:
+            self.smog_surfaces = [None]
 
     def _load_maps(self):
         bg_dir = os.path.join(self.base_dir, "assets", "background map")
