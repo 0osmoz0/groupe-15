@@ -200,8 +200,6 @@ class PlayingScreen:
 
         ctx.world_surface.blit(ctx.assets.background, (0, 0))
         ctx.hitboxes.draw(ctx.world_surface)
-        for hb in ctx.hitboxes:
-            hb.draw_hitboxes_debug(ctx.world_surface)
         ctx.platforms.draw(ctx.world_surface)
         ctx.players.draw(ctx.world_surface)
         draw_player_ping(ctx.world_surface, ctx.player1, ctx.assets.ping_p1, ctx.assets.ping_offset_above)
