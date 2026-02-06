@@ -1,7 +1,3 @@
-"""
-Point d'entrée du jeu. Initialise pygame, crée le contexte et les écrans, puis lance la boucle principale.
-La logique des états (map select, character select, countdown, GIF, win, playing) est déléguée au package game.
-"""
 import os
 import time
 import pygame
