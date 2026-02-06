@@ -4,8 +4,10 @@ import pygame
 # Fenêtre
 WIDTH, HEIGHT = 1920, 1080
 
-# Manettes
-JOY_DEADZONE = 0.35
+# Manettes (zone morte : plus élevé = moins sensible, 0.78 = à fond)
+JOY_DEADZONE = 0.78
+# Clavier (facteur vitesse déplacement : plus bas = moins sensible, 0.5 = à fond)
+KEYBOARD_MOVE_MULT = 0.5
 JOY_BTN_JUMP = 0      # X (PS4) / A (Xbox)
 JOY_BTN_SPECIAL = 1   # Cercle / B
 JOY_BTN_ATTACK = 2    # Carré / X

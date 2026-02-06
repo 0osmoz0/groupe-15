@@ -73,6 +73,22 @@ def init_joysticks(player1, player2, force_log=False):
                 print(f"  [Manettes] Joystick({i}).init() erreur: {e}")
     player1.joy_id = 0 if n_effective >= 1 else None
     player2.joy_id = 1 if n_effective >= 2 else None
+    # Synchroniser l'objet joystick avec joy_id (ne créer Joystick(i) que si i < get_count(), sinon segfault macOS)
+    n_now = pygame.joystick.get_count()
+    for pl in (player1, player2):
+        if getattr(pl, "joy_id", None) is None:
+            if hasattr(pl, "joystick"):
+                pl.joystick = None
+        elif pl.joy_id >= n_now:
+            if hasattr(pl, "joystick"):
+                pl.joystick = None
+        else:
+            try:
+                pl.joystick = pygame.joystick.Joystick(pl.joy_id)
+                pl.joystick.init()
+            except Exception:
+                if hasattr(pl, "joystick"):
+                    pl.joystick = None
     if DEBUG_JOYSTICK and (force_log or n_raw != _last_joystick_count):
         _last_joystick_count = n_raw
         print(f"[Manettes] get_count() = {n_raw} effective = {n_effective} -> P1.joy_id={player1.joy_id} P2.joy_id={player2.joy_id}")
@@ -177,7 +193,11 @@ def get_joystick_poll_events(deadzone: float, confirm_buttons: tuple = (0, 9)):
 
 
 def get_player_input_state(player):
-    """Retourne (left, right, up, down) depuis clavier ou manette. Priorité cache de polling. Utilise le nombre effectif (collant à 2)."""
+    """Retourne (left, right, up, down) depuis clavier ou manette. Si le Player a _get_joy_input (manette directe), l'utiliser."""
+    if callable(getattr(player, "_get_joy_input", None)):
+        joy_in = player._get_joy_input()
+        if joy_in is not None:
+            return (joy_in[0], joy_in[1], joy_in[2], joy_in[3])
     n_joy = get_effective_joy_count()
     joy_id = getattr(player, "joy_id", None)
     if joy_id is not None and joy_id < n_joy and n_joy >= 1:

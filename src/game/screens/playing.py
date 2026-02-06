@@ -30,6 +30,16 @@ class PlayingScreen:
         # Toujours réassigner P1/P2 aux manettes (manette 0 = P1, manette 1 = P2)
         ctx.player1.joy_id = 0 if n_joy >= 1 else None
         ctx.player2.joy_id = 1 if n_joy >= 2 else None
+        # Synchroniser joystick : ne créer qu'une seule fois (évite segfault macOS si on recrée à chaque frame)
+        for pl in (ctx.player1, ctx.player2):
+            if getattr(pl, "joy_id", None) is None or pl.joy_id >= n_joy_raw:
+                pl.joystick = None
+            elif getattr(pl, "joystick", None) is None:
+                try:
+                    pl.joystick = pygame.joystick.Joystick(pl.joy_id)
+                    pl.joystick.init()
+                except Exception:
+                    pl.joystick = None
         # Forcer l'init des manettes physiquement présentes (on peut avoir effective=2 alors que raw=1)
         for jid in range(min(2, n_joy_raw)):
             try:
