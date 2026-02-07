@@ -1,0 +1,11 @@
+# Smashtopia - dépendances Python
+# Python 3.8+
+
+# Moteur de jeu (requis)
+pygame>=2.0.0
+
+# GIF animés (optionnel ; sans Pillow, les GIF sont affichés comme image statique)
+Pillow>=9.0.0
+
+# Vidéos d'intro MP4 (optionnel ; sans opencv, l'intro est skippée)
+opencv-python>=4.5.0
