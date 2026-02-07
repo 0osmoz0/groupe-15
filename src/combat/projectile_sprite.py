@@ -1,3 +1,7 @@
+"""
+Projectile (carotte / munition Nick) : déplacement, collision avec joueurs, dégâts/knockback.
+Respecte cheat_invincible_until et cheat_super_damage_until.
+"""
 import math
 import os
 import pygame

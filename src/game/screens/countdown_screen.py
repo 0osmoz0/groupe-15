@@ -1,4 +1,6 @@
-"""Écran countdown 3-2-1-go."""
+"""
+Countdown 3-2-1-Go avant le combat : fond = carte choisie, joueurs et plateformes affichés.
+"""
 import pygame
 from game.config import COUNTDOWN_DURATION_MS
 from game.hud import draw_player_ping
@@ -14,6 +16,7 @@ class CountdownScreen:
                 return
         if not ctx.running:
             return
+        # Au premier step, on fixe le fond sur la carte sélectionnée
         if ctx.countdown_step == 0 and ctx.countdown_timer_ms == 0 and 0 <= ctx.selected_map_index < len(ctx.assets.map_surfaces):
             ctx.assets.background = ctx.assets.map_surfaces[ctx.selected_map_index].copy()
         ctx.countdown_timer_ms += dt_ms

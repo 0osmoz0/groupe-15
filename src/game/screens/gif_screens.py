@@ -1,4 +1,6 @@
-"""Écrans GIF (versus, enter, P1 confirm, etc.)."""
+"""
+Écrans GIF : versus, enter, P1 confirm, etc. Chaque écran joue une animation puis passe à l’état suivant.
+"""
 import pygame
 from game.config import JOY_DEADZONE, JOY_BTN_JUMP, JOY_BTN_START
 from game.config import WAIT_AFTER_GIF_MS, WAIT_AFTER_P1_CONFIRM_MS, WAIT_AFTER_ENTER_GIF_MS, WAIT_AFTER_ENTER_THEN_A_MS
@@ -6,7 +8,7 @@ from game.input_handling import get_joystick_poll_events, safe_event_get
 
 
 def _run_gif_playing(ctx, frames_attr, frame_index_attr, timer_attr, phase_attr, wait_timer_attr, wait_max_ms, next_state, dt_ms):
-    """Avance le GIF et gère playing/waiting. Retourne True si on a dessiné et il faut flip."""
+    """Avance le GIF (playing) puis attend wait_max_ms (waiting) avant de passer à next_state."""
     frames = getattr(ctx.assets, frames_attr)
     frame_index = getattr(ctx, frame_index_attr)
     timer = getattr(ctx, timer_attr)

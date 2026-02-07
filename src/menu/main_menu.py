@@ -1,6 +1,6 @@
 """
-Menu principal type Smash Bros (POO).
-Gère affichage, curseur et entrées clavier/manette.
+Menu principal type Smash Bros (POO) : affichage, curseur, entrées.
+Seul P1 (manette 0 ou clavier) pilote le menu.
 """
 from typing import Optional, Tuple, Sequence
 import pygame

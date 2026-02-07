@@ -1,4 +1,7 @@
-"""Écran de sélection de personnage (P1 puis P2)."""
+"""
+Sélection de personnage : P1 choisit en premier (clavier ou joy 0), puis P2 (joy 1).
+P2 ne peut pas prendre le même perso que P1.
+"""
 import pygame
 from game.config import JOY_DEADZONE, JOY_BTN_JUMP, JOY_BTN_START
 from game.input_handling import get_joystick_poll_events, safe_event_get
@@ -21,13 +24,20 @@ class CharacterSelectScreen:
                 return
             joy_ok_p1 = n_joy > 0 and getattr(event, "joy", -1) == 0
             joy_ok_p2 = n_joy > 1 and getattr(event, "joy", -1) == 1
+            # Touches clavier : on accepte les contrôles du joueur + flèches + Entrée/Espace pour que ça marche à tous les coups.
+            p1_left = (ctx.player1.controls.get("left", pygame.K_a), pygame.K_LEFT, pygame.K_q)
+            p1_right = (ctx.player1.controls.get("right", pygame.K_d), pygame.K_RIGHT)
+            p2_left = (ctx.player2.controls.get("left", pygame.K_LEFT), pygame.K_LEFT)
+            p2_right = (ctx.player2.controls.get("right", pygame.K_RIGHT), pygame.K_RIGHT)
+            confirm_keys = (pygame.K_RETURN, pygame.K_SPACE, pygame.K_KP_ENTER)
+            p2_confirm = (ctx.player2.controls.get("jump", pygame.K_UP), pygame.K_UP) + confirm_keys
             if ctx.char_select_phase == "p1":
                 if event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_LEFT:
+                    if event.key in p1_left:
                         ctx.char_select_cursor = (ctx.char_select_cursor - 1) % len(ctx.characters)
-                    elif event.key in (pygame.K_RIGHT, pygame.K_d):
+                    elif event.key in p1_right:
                         ctx.char_select_cursor = (ctx.char_select_cursor + 1) % len(ctx.characters)
-                    elif event.key in (pygame.K_RETURN, pygame.K_SPACE):
+                    elif event.key in confirm_keys:
                         self._confirm(ctx)
                         return
                 if event.type == pygame.JOYAXISMOTION and joy_ok_p1 and event.axis == 0:
@@ -40,6 +50,18 @@ class CharacterSelectScreen:
                     self._confirm(ctx)
                     return
             else:
+                if event.type == pygame.KEYDOWN:
+                    if event.key in p2_left:
+                        ctx.char_select_cursor = (ctx.char_select_cursor - 1) % len(ctx.characters)
+                        if ctx.characters[ctx.char_select_cursor] == ctx.p1_character_choice:
+                            ctx.char_select_cursor = (ctx.char_select_cursor - 1) % len(ctx.characters)
+                    elif event.key in p2_right:
+                        ctx.char_select_cursor = (ctx.char_select_cursor + 1) % len(ctx.characters)
+                        if ctx.characters[ctx.char_select_cursor] == ctx.p1_character_choice:
+                            ctx.char_select_cursor = (ctx.char_select_cursor + 1) % len(ctx.characters)
+                    elif event.key in p2_confirm:
+                        self._confirm(ctx)
+                        return
                 if event.type == pygame.JOYAXISMOTION and joy_ok_p2 and event.axis == 0:
                     ax = event.value
                     if ax < -JOY_DEADZONE:
@@ -119,5 +141,5 @@ class CharacterSelectScreen:
                     cur = font_opt.render(">", True, (255, 220, 100))
                     ctx.screen.blit(cur, (opt_rect.left - 40, opt_rect.centery - cur.get_height() // 2))
                 ctx.screen.blit(opt, opt_rect)
-        hint = font_opt.render("Gauche/Droite : choisir   Entree / A : valider", True, (160, 160, 160))
+        hint = font_opt.render("Fleches ou A/D : deplacer   Entree ou Espace : valider", True, (160, 160, 160))
         ctx.screen.blit(hint, hint.get_rect(center=(ctx.screen_w // 2, ctx.screen_h - 80)))

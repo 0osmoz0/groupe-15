@@ -1,4 +1,7 @@
-"""État de jeu principal (combat, caméra, HUD)."""
+"""
+Écran de combat : musique, conditions de victoire (Nick/Judy), événements clavier/manette,
+rafale distance, pause, mise à jour joueurs / caméra, dessin monde + HUD.
+"""
 import random
 import pygame
 from game.config import (
@@ -18,6 +21,7 @@ from player.player import (
 
 class PlayingScreen:
     def run(self, ctx):
+        # Démarrage musique de combat au premier frame
         if getattr(ctx.assets, "combat_music_loaded", False) and not getattr(ctx, "combat_music_playing", False):
             try:
                 if getattr(ctx, "menu_music_playing", False):
@@ -39,6 +43,7 @@ class PlayingScreen:
             except Exception:
                 pass
 
+        # Victoire P2 : on regarde son perso pour choisir l’écran Nick ou Judy + sons
         if ctx.player1.lives <= 0 and ctx.player2.lives > 0:
             winner_nick = getattr(ctx.player2, "character", None) == "nick"
             ctx.game_state = "nick_wins" if winner_nick else "judy_wins"
@@ -69,6 +74,7 @@ class PlayingScreen:
                             pass
             ctx.combat_music_playing = False
             return
+        # Victoire P1 : idem selon le perso du gagnant
         if ctx.player2.lives <= 0 and ctx.player1.lives > 0:
             winner_nick = getattr(ctx.player1, "character", None) == "nick"
             ctx.game_state = "nick_wins" if winner_nick else "judy_wins"
@@ -103,6 +109,7 @@ class PlayingScreen:
         events = safe_event_get()
         n_joy_raw = pygame.joystick.get_count()
         n_joy = get_effective_joy_count()
+        # Réattache manettes P1/P2 si besoin
         ctx.player1.joy_id = 0 if n_joy >= 1 else None
         ctx.player2.joy_id = 1 if n_joy >= 2 else None
         for pl in (ctx.player1, ctx.player2):
@@ -130,6 +137,7 @@ class PlayingScreen:
             if event.type == pygame.QUIT:
                 ctx.running = False
                 return
+            # Menu pause : Échap/Start pour ouvrir ; Reprendre ou Quitter la partie
             if ctx.paused:
                 if event.type == pygame.KEYDOWN:
                     if event.key in (pygame.K_ESCAPE, pygame.K_p):
@@ -175,6 +183,7 @@ class PlayingScreen:
                 ctx.pause_menu_cursor = 0
                 continue
             if event.type == pygame.KEYDOWN:
+                # Codes triche clavier : I-N-V = invincibilité 10 s, D-M-G = dégâts x5 10 s
                 cheat_keys = (pygame.K_i, pygame.K_n, pygame.K_v, pygame.K_d, pygame.K_m, pygame.K_g)
                 if event.key in cheat_keys:
                     buf = getattr(ctx, "_cheat_keys", [])
@@ -233,6 +242,7 @@ class PlayingScreen:
                 print(f"[Manette EVENT] JOYAXISMOTION joy={event.joy} axis={event.axis} value={event.value:.2f}")
             if event.type == pygame.JOYBUTTONDOWN:
                 joy_id, btn = event.joy, event.button
+                # Triche manette P1 : L1-L2-L1 = invincibilité, L2-L1-L2 = super dégâts (< 2 s)
                 if joy_id == 0 and btn in (JOY_BTN_COUNTER, JOY_BTN_COUNTER_ALT):
                     seq = getattr(ctx, "_cheat_joy_seq", [])
                     t = pygame.time.get_ticks()

@@ -1,4 +1,6 @@
-"""Chargement des assets (cartes, GIFs, HUD, plateformes, polices)."""
+"""
+Chargement des assets : cartes, GIFs victoire, HUD (portraits, icônes vies), plateformes, polices, smog, musiques/sons.
+"""
 import os
 import pygame
 

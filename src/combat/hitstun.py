@@ -1,3 +1,6 @@
+"""
+Calcul des frames de hitstun selon le knockback et le style (melee, 64, smash4, ultimate).
+"""
 HITSTUN_MULTIPLIER_MELEE = 0.4
 HITSTUN_MULTIPLIER_64 = 0.533
 HITSTUN_FRAME_SUBTRACT = 1

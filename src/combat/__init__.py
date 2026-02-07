@@ -1,3 +1,4 @@
+"""Combat : hitbox, knockback, hitstun, attaques, projectiles."""
 from .hitbox import Hitbox, HitboxType
 from .knockback import (
     compute_knockback,

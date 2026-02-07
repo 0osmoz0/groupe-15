@@ -1,4 +1,7 @@
-"""Écran de sélection de carte."""
+"""
+Sélection de carte : P1 et P2 ont chacun un curseur (contours rouge/bleu).
+Si même carte → elle est prise ; sinon tirage aléatoire entre les deux.
+"""
 import random
 import pygame
 from game.config import JOY_DEADZONE, JOY_BTN_JUMP, JOY_BTN_START
@@ -22,20 +25,37 @@ class MapSelectScreen:
         n_maps = max(1, len(getattr(ctx.assets, "map_surfaces", [])))
         ctx.map_select_cursor_p1 = min(max(0, getattr(ctx, "map_select_cursor_p1", 0)), n_maps - 1)
         ctx.map_select_cursor_p2 = min(max(0, getattr(ctx, "map_select_cursor_p2", 0)), n_maps - 1)
+        # P1 : clavier (Q/D + Entrée/Espace) ou joy 0 ; P2 : clavier (flèches + Haut) ou joy 1.
+        p1_left = ctx.player1.controls.get("left", pygame.K_LEFT)
+        p1_right = ctx.player1.controls.get("right", pygame.K_d)
+        p2_left = ctx.player2.controls.get("left", pygame.K_LEFT)
+        p2_right = ctx.player2.controls.get("right", pygame.K_RIGHT)
+        p2_confirm = ctx.player2.controls.get("jump", pygame.K_UP)
         for event in events:
             if event.type == pygame.QUIT:
                 ctx.running = False
                 return
             if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_LEFT:
+                if event.key == p1_left:
                     ctx.map_select_cursor_p1 = (ctx.map_select_cursor_p1 - 1) % n_maps
-                elif event.key in (pygame.K_RIGHT, pygame.K_d):
+                elif event.key == p1_right:
                     ctx.map_select_cursor_p1 = (ctx.map_select_cursor_p1 + 1) % n_maps
                 elif event.key in (pygame.K_RETURN, pygame.K_SPACE):
                     if getattr(ctx, "map_select_ignore_confirm_frame", False):
                         continue
                     ctx.map_select_p1_confirmed = True
                     if n_joy < 2 or ctx.map_select_p2_confirmed:
+                        self._apply_choice(ctx)
+                        return
+                elif event.key == p2_left:
+                    ctx.map_select_cursor_p2 = (ctx.map_select_cursor_p2 - 1) % n_maps
+                elif event.key == p2_right:
+                    ctx.map_select_cursor_p2 = (ctx.map_select_cursor_p2 + 1) % n_maps
+                elif event.key == p2_confirm:
+                    if getattr(ctx, "map_select_ignore_confirm_frame", False):
+                        continue
+                    ctx.map_select_p2_confirmed = True
+                    if ctx.map_select_p1_confirmed:
                         self._apply_choice(ctx)
                         return
             if event.type == pygame.JOYAXISMOTION and n_joy > 0 and event.axis == 0:
@@ -73,6 +93,7 @@ class MapSelectScreen:
         ctx.clock.tick(60)
 
     def _apply_choice(self, ctx):
+        """Détermine la carte finale : même choix → celle-là ; sinon random entre les deux."""
         n_maps = max(1, len(getattr(ctx.assets, "map_surfaces", [])))
         c1 = min(ctx.map_select_cursor_p1, n_maps - 1)
         c2 = min(ctx.map_select_cursor_p2, n_maps - 1)
@@ -133,5 +154,5 @@ class MapSelectScreen:
                 color = (200, 200, 200)
             lbl = font_small.render(label, True, color)
             ctx.screen.blit(lbl, (x + thumb_w // 2 - lbl.get_width() // 2, y + thumb_h + 8))
-        hint = font_small.render("P1 : clavier / manette 1   P2 : manette 2   A / Entree : valider", True, (160, 160, 160))
+        hint = font_small.render("P1 : Q/D + Entree   P2 : fleches + Haut (ou manettes)   Valider : Entree / Espace / Haut", True, (160, 160, 160))
         ctx.screen.blit(hint, hint.get_rect(center=(ctx.screen_w // 2, ctx.screen_h - 50)))

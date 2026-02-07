@@ -1,3 +1,7 @@
+"""
+Joueur (Sprite) : déplacement, saut, attaques, knockback, invincibilité temporaire, triches (invincible / super dégâts).
+Cooldown rafale distance pour limiter le spam.
+"""
 import math
 import os
 import pygame

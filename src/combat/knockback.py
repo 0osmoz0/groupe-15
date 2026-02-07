@@ -1,3 +1,6 @@
+"""
+Calcul du knockback (vitesse de lancement, angle) selon pourcentage, poids, rage, etc.
+"""
 import math
 
 LAUNCH_SPEED_FACTOR = 0.03

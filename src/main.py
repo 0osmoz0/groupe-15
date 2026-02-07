@@ -1,3 +1,7 @@
+"""
+Point d'entrée du jeu : init pygame, création du contexte, des joueurs, des plateformes,
+puis boucle principale qui délègue à chaque écran selon game_state.
+"""
 import os
 import time
 import pygame
@@ -25,6 +29,7 @@ from game.screens import (
     PlayingScreen,
 )
 
+# --- Init Pygame (écran, polices, manettes, son) ---
 pygame.init()
 pygame.font.init()
 pygame.joystick.init()
@@ -36,6 +41,7 @@ except Exception:
 time.sleep(0.3)
 print(f"🎮 Manettes détectées : {pygame.joystick.get_count()}")
 
+# Fenêtre en plein écran, monde 2x la taille de l'écran pour le scroll
 fullscreen_mode = True
 screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.FULLSCREEN if fullscreen_mode else 0)
 clock = pygame.time.Clock()
@@ -47,17 +53,18 @@ ctx = GameContext(screen, clock, base_dir, (screen_w, screen_h), (world_w, world
 ctx.fullscreen_mode = fullscreen_mode
 ctx.window_size = (WIDTH, HEIGHT)
 
+# Contrôles type Brawlhalla : P1 clavier A/D + F/E/H (ou manette 0), P2 flèches + M/I/J (ou manette 1).
 player1 = Player(
     start_pos=(world_w // 2 - 200, world_h // 2),
     color=(255, 0, 0),
     controls={
-        "left": pygame.K_q, 
-        "right": pygame.K_d, 
-        "jump": pygame.K_SPACE, 
-        "down": pygame.K_s, 
-        "attacking": pygame.K_f, 
-        "special": pygame.K_e, 
-        "grab": pygame.K_g, 
+        "left": pygame.K_a,
+        "right": pygame.K_d,
+        "jump": pygame.K_SPACE,
+        "down": pygame.K_s,
+        "attacking": pygame.K_f,
+        "special": pygame.K_e,
+        "grab": pygame.K_g,
         "counter": pygame.K_h
     },
     screen_size=(world_w, world_h),
@@ -86,6 +93,7 @@ ctx.player2 = player2
 ctx.players = pygame.sprite.Group(player1, player2)
 ctx.hitboxes = pygame.sprite.Group()
 
+# Plateformes : une centrale + deux petites en hauteur (one-way)
 a = ctx.assets
 wc_x, wc_y = world_w // 2, world_h // 2
 platforms = pygame.sprite.Group()
@@ -115,6 +123,7 @@ ctx.platforms = platforms
 
 init_joysticks(player1, player2)
 
+# --- Instances des écrans et menus ---
 main_menu = MainMenu(
     screen_w, screen_h,
     ("VERSUS", "PARAMETRES", "QUITTER"),
@@ -157,6 +166,7 @@ playing_screen = PlayingScreen()
 while ctx.running:
     tick_joystick_rescan(player1, player2)
     
+    # --- Menu principal (seule la manette P1 pilote le menu) ---
     if ctx.game_state == "main_menu":
         if a.menu_music_loaded and not ctx.menu_music_playing:
             try:
@@ -197,6 +207,7 @@ while ctx.running:
                 break
             
             if selected == "VERSUS":
+                # Reset partie + curseurs map P1/P2 avant d’aller en sélection de carte
                 ctx.game_state = "map_select"
                 ctx.map_select_cursor = 0
                 ctx.map_select_cursor_p1 = 0

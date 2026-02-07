@@ -1,3 +1,6 @@
+"""
+Définition des attaques (hitboxes par frame) : jab, tilts, smash, aériennes, specials, projectile.
+"""
 from enum import Enum
 from .hitbox import Hitbox, HitboxType
 

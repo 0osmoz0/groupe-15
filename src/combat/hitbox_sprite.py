@@ -1,3 +1,7 @@
+"""
+Sprite d’hitbox mêlée : suit l’attaquant, teste collision avec hurtbox, applique dégâts/knockback.
+Gère invincibilité et super dégâts (triches).
+"""
 import math
 import os
 import pygame

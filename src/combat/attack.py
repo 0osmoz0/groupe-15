@@ -1,3 +1,6 @@
+"""
+Résolution des coups : dégâts, knockback, hitstun, DI. Utilisé par HitboxSprite et ProjectileSprite.
+"""
 from __future__ import annotations
 
 import math

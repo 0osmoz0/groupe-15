@@ -1,3 +1,6 @@
+"""
+Hitbox : rectangle par frame (offset, taille, angle, dégâts, knockback). Types : normal, set_knockback, none.
+"""
 from __future__ import annotations
 
 from enum import Enum

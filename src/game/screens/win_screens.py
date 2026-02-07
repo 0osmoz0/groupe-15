@@ -1,4 +1,6 @@
-"""Écrans de victoire (Nick wins / Judy wins)."""
+"""
+Écrans de victoire Nick / Judy : animation d’images, puis touche ou bouton manette → menu principal.
+"""
 import pygame
 from game.config import JOY_DEADZONE, JOY_BTN_JUMP, JOY_BTN_START
 from game.input_handling import get_joystick_poll_events, safe_event_get
@@ -23,6 +25,7 @@ class NickWinScreen:
                 return
         if not ctx.running:
             return
+        # Animation frame par frame selon durées dans assets
         frames = ctx.assets.nick_win_frames
         if frames:
             ctx.nick_win_frame_timer_ms += dt_ms
@@ -53,6 +56,7 @@ class JudyWinScreen:
                 return
         if not ctx.running:
             return
+        # Même logique que Nick : animation puis retour menu
         frames = ctx.assets.judy_win_frames
         if frames:
             ctx.judy_win_frame_timer_ms += dt_ms

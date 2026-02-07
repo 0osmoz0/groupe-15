@@ -1,3 +1,6 @@
+"""
+Plateforme (Sprite) : sol ou plateforme traversable (one_way), avec image optionnelle.
+"""
 import pygame
 
 class Platform(pygame.sprite.Sprite):

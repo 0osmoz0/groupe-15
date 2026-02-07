@@ -1,4 +1,6 @@
-"""Dessin du HUD : pourcentages, stocks, portraits, ping."""
+"""
+HUD : pourcentages avec contour lisible, stocks (icônes vies), portraits P1/P2 selon personnage.
+"""
 import pygame
 
 
